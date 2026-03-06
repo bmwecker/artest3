@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>AR Experience</title>
+
+  <!--
+    MindAR — работает без WebXR, показывает реальную камеру,
+    работает в обычном Chrome/Safari через HTTPS
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-world.prod.js"></script>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-world-aframe.prod.js"></script>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family:-apple-system,sans-serif; }
+
+    /* MindAR и A-Frame должны занимать весь экран */
+    a-scene { width:100vw; height:100vh; }
+
+    /* Видео с камеры — явно показываем */
+    #mindar-ui-overlay { display:none !important; }
+    video {
+      position:fixed !important; inset:0 !important;
+      width:100% !important; height:100% !important;
+      object-fit:cover !important;
+      z-index:0 !important;
+    }
+    canvas {
+      position:fixed !important; inset:0 !important;
+      width:100% !important; height:100% !important;
+      z-index:1 !important; background:transparent !important;
+    }
+
+    /* ── СТАРТОВЫЙ ЭКРАН ── */
+    #start-screen {
+      position:fixed; inset:0; z-index:500;
+      background:linear-gradient(160deg,#0d0d1a 0%,#1a0a2e 100%);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:14px;
+      transition:opacity .6s ease;
+    }
+    #start-screen.hidden { opacity:0; pointer-events:none; }
+    .logo { font-size:52px; font-weight:900; letter-spacing:-2px; color:#fff; }
+    .logo span { color:#00e5ff; }
+    .logo-sub { color:rgba(255,255,255,.4); font-size:12px; letter-spacing:4px; text-transform:uppercase; }
+    #start-btn {
+      margin-top:20px; padding:17px 44px; border:none; border-radius:50px;
+      background:linear-gradient(135deg,#00e5ff,#7c3aed);
+      color:#fff; font-size:17px; font-weight:700; cursor:pointer;
+      box-shadow:0 8px 32px rgba(124,58,237,.45);
+      transition:transform .15s;
+    }
+    #start-btn:active { transform:scale(.95); }
+    .start-note { color:rgba(255,255,255,.28); font-size:12px; text-align:center; max-width:250px; line-height:1.6; padding:0 20px; }
+
+    /* ── SCAN OVERLAY ── */
+    #scan-overlay {
+      position:fixed; inset:0; z-index:10;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:24px;
+      pointer-events:none; transition:opacity .5s;
+    }
+    #scan-overlay.hidden { opacity:0; }
+    .reticle { width:190px; height:190px; position:relative; }
+    .reticle svg { width:100%; height:100%; animation:rspin 4s linear infinite; }
+    @keyframes rspin { to { transform:rotate(360deg); } }
+    .rdot {
+      position:absolute; top:50%; left:50%; width:14px; height:14px;
+      background:#00e5ff; border-radius:50%; transform:translate(-50%,-50%);
+      box-shadow:0 0 20px #00e5ff,0 0 40px rgba(0,229,255,.4);
+      animation:rpulse 1.3s ease-in-out infinite;
+    }
+    @keyframes rpulse {
+      0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+      50%{transform:translate(-50%,-50%) scale(1.8);opacity:.25}
+    }
+    .scan-box {
+      background:rgba(0,0,0,.65); backdrop-filter:blur(16px);
+      border:1px solid rgba(255,255,255,.14); border-radius:20px;
+      padding:14px 22px; color:#fff; font-size:14px; text-align:center; max-width:260px;
+    }
+    .scan-box b { color:#00e5ff; display:block; margin-bottom:4px; font-size:15px; }
+
+    /* ── TAP HINT ── */
+    #tap-hint {
+      position:fixed; bottom:145px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,.65); backdrop-filter:blur(16px);
+      border:1px solid rgba(255,255,255,.2); border-radius:50px;
+      padding:11px 22px; color:#fff; font-size:14px; font-weight:600;
+      white-space:nowrap; z-index:20; pointer-events:none;
+      opacity:0; transition:opacity .4s;
+    }
+    #tap-hint.show { opacity:1; }
+
+    /* ── TOOLTIP ── */
+    #tooltip {
+      position:fixed; top:38%; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,.7); backdrop-filter:blur(12px);
+      border:1px solid rgba(255,255,255,.18); border-radius:50px;
+      padding:10px 20px; color:#fff; font-size:13px; font-weight:600;
+      white-space:nowrap; z-index:20; pointer-events:none;
+      opacity:0; transition:opacity .35s;
+    }
+    #tooltip.show { opacity:1; }
+
+    /* ── FLASH ── */
+    #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:999; transition:opacity .04s; }
+    #flash.on { opacity:1; }
+
+    /* ── UI BAR ── */
+    #ui-bar {
+      position:fixed; bottom:0; left:0; right:0; height:115px; z-index:50;
+      display:flex; align-items:center; justify-content:space-around; padding:0 24px 22px;
+      opacity:0; pointer-events:none; transition:opacity .7s ease .3s;
+    }
+    #ui-bar.show { opacity:1; pointer-events:all; }
+    .ui-btn { display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
+    .shutter {
+      width:74px; height:74px; border-radius:50%; background:#fff;
+      border:4px solid rgba(255,255,255,.3);
+      box-shadow:0 0 0 2px rgba(255,255,255,.12),0 8px 28px rgba(0,0,0,.5);
+      display:flex; align-items:center; justify-content:center; transition:transform .12s;
+    }
+    .shutter:active { transform:scale(.9); }
+    .pill {
+      width:58px; height:58px; border-radius:18px;
+      background:rgba(0,0,0,.55); backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,.18);
+      display:flex; align-items:center; justify-content:center; transition:transform .12s,background .15s;
+    }
+    .pill:active { transform:scale(.9); }
+    .music-on .pill { background:rgba(0,229,255,.2); border-color:rgba(0,229,255,.45); }
+    .lbl { font-size:11px; font-weight:700; letter-spacing:.4px; color:rgba(255,255,255,.85); text-shadow:0 1px 6px rgba(0,0,0,.9); }
+    .bars { display:flex; align-items:flex-end; gap:3px; height:18px; }
+    .bars span { width:3px; border-radius:2px; background:#fff; animation:bbar .7s ease-in-out infinite alternate; }
+    .bars span:nth-child(1){height:6px;animation-delay:0s}
+    .bars span:nth-child(2){height:14px;animation-delay:.1s}
+    .bars span:nth-child(3){height:9px;animation-delay:.2s}
+    .bars span:nth-child(4){height:16px;animation-delay:.05s}
+    .bars span:nth-child(5){height:7px;animation-delay:.15s}
+    @keyframes bbar{from{transform:scaleY(.3)}to{transform:scaleY(1)}}
+    .bars.paused span { animation-play-state:paused; }
+    .music-on .bars span { background:#00e5ff; }
+
+    /* ── SHARE SHEET ── */
+    #share-bg { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); opacity:0; pointer-events:none; transition:opacity .3s; }
+    #share-bg.show { opacity:1; pointer-events:all; }
+    #share-sheet {
+      position:fixed; bottom:0; left:0; right:0; z-index:301;
+      max-width:500px; margin:0 auto; background:#141414;
+      border-radius:28px 28px 0 0; padding:10px 20px 40px;
+      transform:translateY(110%); transition:transform .4s cubic-bezier(.34,1.4,.64,1);
+    }
+    #share-sheet.show { transform:translateY(0); }
+    .s-handle { width:38px; height:4px; background:rgba(255,255,255,.15); border-radius:2px; margin:0 auto 16px; }
+    #s-preview { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:14px; background:#222; margin-bottom:16px; display:none; }
+    .s-title { color:#fff; font-size:18px; font-weight:700; margin-bottom:3px; }
+    .s-sub   { color:rgba(255,255,255,.4); font-size:13px; margin-bottom:18px; }
+    .s-grid  { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+    .sapp    { display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .sapp-ic { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:26px; transition:transform .12s; }
+    .sapp:active .sapp-ic { transform:scale(.88); }
+    .sapp-lb { font-size:11px; color:rgba(255,255,255,.55); font-weight:500; }
+    .s-save  { width:100%; padding:16px; border:none; border-radius:16px; background:linear-gradient(135deg,#00e5ff,#7c3aed); color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-bottom:10px; transition:transform .12s; }
+    .s-save:active { transform:scale(.97); }
+    .s-close { width:100%; padding:14px; border:none; border-radius:16px; background:rgba(255,255,255,.08); color:rgba(255,255,255,.6); font-size:15px; font-weight:600; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<!-- СТАРТ -->
+<div id="start-screen">
+  <div class="logo">AR<span>.</span></div>
+  <div class="logo-sub">Experience</div>
+  <button id="start-btn" onclick="startAR()">▶ Запустить AR</button>
+  <div class="start-note">Разрешите доступ к камере когда браузер спросит</div>
+</div>
+
+<!-- SCAN -->
+<div id="scan-overlay" class="hidden">
+  <div class="reticle">
+    <svg viewBox="0 0 190 190" fill="none">
+      <circle cx="95" cy="95" r="85" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+      <circle cx="95" cy="95" r="85" stroke="url(#rg)" stroke-width="2.5" stroke-dasharray="65 470" stroke-linecap="round"/>
+      <path d="M20 46L20 20L46 20" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M144 20L170 20L170 46" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M20 144L20 170L46 170" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M144 170L170 170L170 144" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00e5ff"/>
+          <stop offset="100%" stop-color="#7c3aed"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="rdot"></div>
+  </div>
+  <div class="scan-box">
+    <b>Сканирование поверхности</b>
+    Медленно водите камерой по полу или столу
+  </div>
+</div>
+
+<div id="tap-hint">👆 Нажмите чтобы разместить сцену</div>
+<div id="tooltip">🌐 Нажмите на портал чтобы открыть сайт</div>
+<div id="flash"></div>
+
+<!-- A-FRAME + MindAR World Tracking -->
+<a-scene
+  mindar-world="filterMinCF:0.001; filterBeta:0.001"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+  loading-screen="enabled: false"
+  id="ar-scene"
+>
+  <a-assets>
+    <audio id="bgm" src="music.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+  </a-assets>
+
+  <a-camera id="camera" position="0 0 0"
+    cursor="fuse: false; rayOrigin: mouse"
+    raycaster="objects: .clickable; far: 20">
+  </a-camera>
+
+  <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+  <a-light type="directional" position="2 6 3" color="#ffffff" intensity="1.1"></a-light>
+
+  <!-- Вся сцена — изначально скрыта, появляется по тапу -->
+  <a-entity id="world" visible="false">
+
+    <!-- Тень под сценой -->
+    <a-circle rotation="-90 0 0" radius="0.85"
+      material="color:#050515; opacity:0.45; transparent:true; shader:flat">
+    </a-circle>
+
+    <!-- 1. КРИСТАЛЛ -->
+    <a-entity id="crystal" position="0 0.28 0"
+      animation__rot="property:rotation; to:0 360 0; loop:true; dur:7000; easing:linear"
+      animation__bob="property:position; to:0 0.38 0; dir:alternate; loop:true; dur:2000; easing:easeInOutSine">
+      <a-cone height="0.28" radius-bottom="0.13" radius-top="0.01" color="#00e5ff" roughness="0.05" metalness="0.95"></a-cone>
+      <a-cone height="0.28" radius-bottom="0.13" radius-top="0.01" rotation="180 0 0" position="0 -0.14 0" color="#4f46e5" roughness="0.05" metalness="0.95"></a-cone>
+      <a-sphere radius="0.2" material="color:#00e5ff; opacity:0.09; transparent:true; shader:flat; side:back"></a-sphere>
+      <a-light type="point" color="#00e5ff" intensity="0.7" distance="1.5"></a-light>
+    </a-entity>
+
+    <!-- 2. КОЛЬЦА -->
+    <a-torus id="ring1" position="0 0.28 0" radius="0.42" radius-tubular="0.012" color="#00e5ff" roughness="0.1" metalness="0.9" rotation="75 20 0"
+      animation="property:rotation; to:435 380 360; loop:true; dur:9000; easing:linear">
+    </a-torus>
+    <a-torus id="ring2" position="0 0.28 0" radius="0.35" radius-tubular="0.009" color="#7c3aed" roughness="0.1" metalness="0.9" rotation="-45 60 0"
+      animation="property:rotation; to:-405 420 360; loop:true; dur:6500; easing:linear">
+    </a-torus>
+
+    <!-- 3. ОРБИТАЛЬНЫЕ СФЕРЫ -->
+    <a-entity position="0 0.28 0" animation="property:rotation; to:0 360 0; loop:true; dur:4000; easing:linear">
+      <a-sphere position="0.55 0 0" radius="0.075" color="#ff6b9d" roughness="0.1" metalness="0.8"
+        animation__s="property:scale; dir:alternate; to:1.3 1.3 1.3; loop:true; dur:1100; easing:easeInOutSine">
+      </a-sphere>
+    </a-entity>
+    <a-entity position="0 0.28 0" animation="property:rotation; to:0 -360 0; loop:true; dur:5500; easing:linear">
+      <a-sphere position="0 0.4 0.46" radius="0.062" color="#ffd166" roughness="0.15" metalness="0.75"></a-sphere>
+    </a-entity>
+    <a-entity position="0 0.28 0" animation="property:rotation; to:0 360 0; loop:true; dur:7000; easing:linear">
+      <a-sphere position="-0.5 -0.08 0.18" radius="0.055" color="#06d6a0" roughness="0.1" metalness="0.8"></a-sphere>
+    </a-entity>
+
+    <!-- 4. ЛЕТАЮЩИЙ КУБ -->
+    <a-box position="-0.62 0.22 0.1" width="0.16" height="0.16" depth="0.16"
+      color="#ffd166" roughness="0.15" metalness="0.85"
+      animation__rot="property:rotation; to:360 720 360; loop:true; dur:8000; easing:linear"
+      animation__bob="property:position; to:-0.62 0.32 0.1; dir:alternate; loop:true; dur:1600; easing:easeInOutSine">
+    </a-box>
+
+    <!-- 5. ПОРТАЛ — КНОПКА САЙТА (кликабельный) -->
+    <a-entity id="portal" class="clickable" position="0.68 0.28 -0.16">
+      <!-- Внешнее кольцо -->
+      <a-torus radius="0.2" radius-tubular="0.024" color="#7c3aed" roughness="0" metalness="1"
+        animation__spin="property:rotation; to:0 0 360; loop:true; dur:2800; easing:linear"
+        animation__pulse="property:scale; dir:alternate; to:1.12 1.12 1.12; loop:true; dur:850; easing:easeInOutSine">
+      </a-torus>
+      <!-- Среднее кольцо -->
+      <a-torus radius="0.13" radius-tubular="0.013" color="#00e5ff" roughness="0" metalness="1"
+        animation__spin2="property:rotation; to:0 0 -360; loop:true; dur:1900; easing:linear">
+      </a-torus>
+      <!-- Заливка -->
+      <a-circle radius="0.16" material="color:#7c3aed; opacity:0.72; transparent:true; shader:flat; side:double"
+        animation__glow="property:material.opacity; dir:alternate; to:0.95; loop:true; dur:850; easing:easeInOutSine">
+      </a-circle>
+      <a-light type="point" color="#7c3aed" intensity="0.55" distance="0.9"></a-light>
+      <!-- Подпись -->
+      <a-text value="НА САЙТ" align="center" color="#ffffff" position="0 -0.27 0" scale="0.28 0.28 0.28" letter-spacing="3"></a-text>
+      <!-- Hit-зона -->
+      <a-circle class="clickable" radius="0.26" material="opacity:0; transparent:true; side:double"></a-circle>
+    </a-entity>
+
+    <!-- 6. ЧАСТИЦЫ -->
+    <a-entity id="particles"></a-entity>
+
+  </a-entity><!-- /world -->
+
+</a-scene>
+
+<!-- UI BAR -->
+<div id="ui-bar">
+  <div class="ui-btn" id="music-btn" onclick="toggleMusic()">
+    <div class="pill"><div class="bars paused" id="bars"><span></span><span></span><span></span><span></span><span></span></div></div>
+    <span class="lbl">Музыка</span>
+  </div>
+  <div class="ui-btn" onclick="takePhoto()">
+    <div class="shutter">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <span class="lbl">Фото</span>
+  </div>
+  <div class="ui-btn" onclick="goToSite()">
+    <div class="pill">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    </div>
+    <span class="lbl">Сайт</span>
+  </div>
+</div>
+
+<!-- SHARE SHEET -->
+<div id="share-bg" onclick="closeShare()"></div>
+<div id="share-sheet">
+  <div class="s-handle"></div>
+  <img id="s-preview" src="" alt="">
+  <div class="s-title">Поделиться фото</div>
+  <div class="s-sub">Выберите приложение</div>
+  <div class="s-grid">
+    <div class="sapp" onclick="shareTo('instagram')"><div class="sapp-ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)">📸</div><span class="sapp-lb">Instagram</span></div>
+    <div class="sapp" onclick="shareTo('telegram')"><div class="sapp-ic" style="background:#229ED9">✈️</div><span class="sapp-lb">Telegram</span></div>
+    <div class="sapp" onclick="shareTo('whatsapp')"><div class="sapp-ic" style="background:#25D366">💬</div><span class="sapp-lb">WhatsApp</span></div>
+    <div class="sapp" onclick="shareTo('vk')"><div class="sapp-ic" style="background:#4C75A3">🔵</div><span class="sapp-lb">ВКонтакте</span></div>
+    <div class="sapp" onclick="shareTo('x')"><div class="sapp-ic" style="background:#000">✖️</div><span class="sapp-lb">X</span></div>
+    <div class="sapp" onclick="shareTo('facebook')"><div class="sapp-ic" style="background:#1877F2">📘</div><span class="sapp-lb">Facebook</span></div>
+    <div class="sapp" onclick="shareTo('tiktok')"><div class="sapp-ic" style="background:linear-gradient(135deg,#010101,#69C9D0)">🎵</div><span class="sapp-lb">TikTok</span></div>
+    <div class="sapp" onclick="shareTo('native')"><div class="sapp-ic" style="background:rgba(255,255,255,.1)">📤</div><span class="sapp-lb">Ещё...</span></div>
+  </div>
+  <button class="s-save" onclick="savePhoto()">⬇️ Сохранить в галерею</button>
+  <button class="s-close" onclick="closeShare()">Закрыть</button>
+</div>
+
+<script>
+// ╔══════════════════════════════════════╗
+// ║  ЗАМЕНИТЕ НА СВОИ ДАННЫЕ            ║
+// ╚══════════════════════════════════════╝
+const CFG = {
+  siteUrl:   'https://ВАШ_САЙТ.tilda.ws',
+  shareText: 'Посмотри этот AR-опыт! 🚀✨',
+  shareUrl:  'https://ВАШ-ДОМЕН.onrender.com',
+};
+
+let placed = false, musicOn = false, captured = null;
+const audio = document.getElementById('bgm');
+
+// ── ЗАПУСК ────────────────────────────
+function startAR() {
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('scan-overlay').classList.remove('hidden');
+
+  // Показываем tap-hint через 2.5 сек
+  setTimeout(() => {
+    if (!placed) {
+      document.getElementById('scan-overlay').classList.add('hidden');
+      document.getElementById('tap-hint').classList.add('show');
+    }
+  }, 2500);
+}
+
+// ── ТАП — РАЗМЕЩЕНИЕ СЦЕНЫ ───────────
+const sceneEl = document.getElementById('ar-scene');
+sceneEl.addEventListener('loaded', () => {
+  sceneEl.addEventListener('touchend', onTap, { passive: true });
+  sceneEl.addEventListener('click',    onTap);
+});
+
+function onTap(e) {
+  if (placed) return;
+  if (e.target.closest && (
+    e.target.closest('#ui-bar') ||
+    e.target.closest('#share-sheet') ||
+    e.target.closest('#share-bg') ||
+    e.target.closest('#start-screen')
+  )) return;
+
+  placed = true;
+  document.getElementById('tap-hint').classList.remove('show');
+
+  const world  = document.getElementById('world');
+  const cam    = document.getElementById('camera');
+  const camPos = cam.getAttribute('position') || {x:0,y:0,z:0};
+  const camRot = cam.getAttribute('rotation') || {x:0,y:0,z:0};
+  const yRad   = ((camRot.y || 0) * Math.PI) / 180;
+  const dist   = 1.5;
+
+  world.setAttribute('position', {
+    x: (camPos.x || 0) - Math.sin(yRad) * dist,
+    y: (camPos.y || 0) - 1.4,
+    z: (camPos.z || 0) - Math.cos(yRad) * dist,
+  });
+  world.setAttribute('rotation', `0 ${camRot.y || 0} 0`);
+  world.setAttribute('visible', 'true');
+  world.setAttribute('scale', '0.01 0.01 0.01');
+  world.setAttribute('animation__appear',
+    'property:scale; to:1 1 1; dur:700; easing:easeOutElastic');
+
+  setTimeout(() => document.getElementById('ui-bar').classList.add('show'), 500);
+  setTimeout(startMusic, 900);
+  spawnParticles();
+
+  // Клик по порталу
+  const portal = document.getElementById('portal');
+  portal.addEventListener('click', goToSite);
+
+  // Подсказка про портал
+  setTimeout(() => {
+    const tip = document.getElementById('tooltip');
+    tip.classList.add('show');
+    setTimeout(() => tip.classList.remove('show'), 3500);
+  }, 1800);
+}
+
+// ── МУЗЫКА ────────────────────────────
+function startMusic() {
+  audio.volume = 0;
+  audio.play().then(() => {
+    musicOn = true; updateMusicUI();
+    let v = 0;
+    const fi = setInterval(() => { v = Math.min(v + 0.04, 0.7); audio.volume = v; if (v >= 0.7) clearInterval(fi); }, 80);
+  }).catch(() => {});
+}
+function toggleMusic() {
+  if (!placed) return;
+  musicOn ? (audio.pause(), musicOn = false) : (audio.play().catch(()=>{}), musicOn = true);
+  updateMusicUI();
+}
+function updateMusicUI() {
+  document.getElementById('music-btn').classList.toggle('music-on', musicOn);
+  document.getElementById('bars').classList.toggle('paused', !musicOn);
+}
+
+// ── САЙТ ──────────────────────────────
+function goToSite() { window.open(CFG.siteUrl, '_blank'); }
+
+// ── ФОТО ──────────────────────────────
+function takePhoto() {
+  if (!placed) return;
+  const flash = document.getElementById('flash');
+  flash.classList.add('on');
+  setTimeout(() => flash.classList.remove('on'), 120);
+  setTimeout(() => {
+    // Захватываем canvas A-Frame
+    const cv = document.querySelector('a-scene canvas') || document.querySelector('canvas');
+    if (!cv) { openShare(); return; }
+    try {
+      captured = cv.toDataURL('image/jpeg', 0.93);
+      document.getElementById('s-preview').src = captured;
+      document.getElementById('s-preview').style.display = 'block';
+    } catch(e) {
+      captured = null;
+      document.getElementById('s-preview').style.display = 'none';
+    }
+    openShare();
+  }, 100);
+}
+
+// ── ШЭРИНГ ────────────────────────────
+function openShare()  { document.getElementById('share-bg').classList.add('show'); document.getElementById('share-sheet').classList.add('show'); }
+function closeShare() { document.getElementById('share-bg').classList.remove('show'); document.getElementById('share-sheet').classList.remove('show'); }
+
+async function shareTo(app) {
+  const text = CFG.shareText, url = CFG.shareUrl, enc = encodeURIComponent;
+  if (app === 'native' && navigator.share) {
+    const data = { title: 'AR Experience', text, url };
+    if (captured && navigator.canShare) {
+      try { const f = new File([d2b(captured)],'ar.jpg',{type:'image/jpeg'}); if(navigator.canShare({files:[f]})) data.files=[f]; } catch(e){}
+    }
+    await navigator.share(data).catch(()=>{}); closeShare(); return;
+  }
+  if (app === 'instagram') { savePhotoFile(); setTimeout(() => { window.location.href = 'instagram://story-camera'; }, 600); return; }
+  const L = {
+    telegram: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`,
+    whatsapp: `https://wa.me/?text=${enc(text+' '+url)}`,
+    vk:       `https://vk.com/share.php?url=${enc(url)}&title=${enc(text)}`,
+    x:        `https://twitter.com/intent/tweet?text=${enc(text+' '+url)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`,
+    tiktok:   `https://www.tiktok.com/`,
+  };
+  if (L[app]) { window.open(L[app], '_blank'); closeShare(); }
+}
+function savePhoto()     { if (!captured) return; savePhotoFile(); }
+function savePhotoFile() { const a=document.createElement('a'); a.href=captured; a.download=`ar-${Date.now()}.jpg`; a.click(); }
+function d2b(du) {
+  const [h,d]=du.split(','); const mime=h.match(/:(.*?);/)[1];
+  const bin=atob(d); const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+
+// ── ЧАСТИЦЫ ───────────────────────────
+function spawnParticles() {
+  const root   = document.getElementById('particles');
+  const colors = ['#00e5ff','#7c3aed','#ff6b9d','#ffd166','#06d6a0'];
+  for (let i = 0; i < 18; i++) {
+    const a   = (i/18)*Math.PI*2;
+    const r   = 0.2 + Math.random()*0.6;
+    const h   = 0.05 + Math.random()*0.6;
+    const col = colors[i % colors.length];
+    const rad = (0.01 + Math.random()*0.022).toFixed(3);
+    const dur = (1300 + Math.random()*2400).toFixed(0);
+    const p   = document.createElement('a-sphere');
+    p.setAttribute('position',`${(Math.cos(a)*r).toFixed(3)} ${h.toFixed(3)} ${(Math.sin(a)*r).toFixed(3)}`);
+    p.setAttribute('radius', rad);
+    p.setAttribute('material',`shader:flat; color:${col}`);
+    p.setAttribute('animation',`property:position; to:${(Math.cos(a)*r*1.3).toFixed(3)} ${(h+0.18).toFixed(3)} ${(Math.sin(a)*r*1.3).toFixed(3)}; dir:alternate; loop:true; dur:${dur}; easing:easeInOutSine`);
+    root.appendChild(p);
+  }
+}
+</script>
+</body>
+</html>

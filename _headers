@@ -1,0 +1,6 @@
+/*
+  Permissions-Policy: camera=*, microphone=(), xr-spatial-tracking=*
+  Feature-Policy: camera *; xr-spatial-tracking *
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
