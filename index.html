@@ -262,6 +262,7 @@ const CFG = {
 
 // ── ОПРЕДЕЛЕНИЕ ПЛАТФОРМЫ ─────────────
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isAndroid = /Android/i.test(navigator.userAgent);
 
 // Если iOS — сразу показываем iOS экран, Android стартовый скрываем
 if(isIOS){
@@ -353,8 +354,14 @@ function anim(t){
   parts.forEach(p=>{p.position.y=p.userData.baseY+Math.sin(t*p.userData.speed+p.userData.phase)*0.07;});
 }
 
-// ── СТАРТ (только Android) ────────────
+// ── СТАРТ (Android теперь всегда через видео AR, без WebXR) ────────────
 async function startAR(){
+  // На Android делаем стабильный вариант: обычная камера + 3D поверх,
+  // чтобы фото всегда включали реальное окружение.
+  if(isAndroid){
+    await startVideoAR();
+    return;
+  }
   const hasXR=navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
   if(hasXR){ await startWebXR(); }
   else      { await startVideoAR(); }
