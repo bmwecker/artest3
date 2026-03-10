@@ -525,8 +525,13 @@ async function startVideoAR(){
   document.getElementById('start-screen').classList.add('hidden');
   let ft=0,lt=performance.now();
   (function loop(){requestAnimationFrame(loop);const n=performance.now();ft+=(n-lt)/1000;lt=n;anim(ft);renderer.render(scene,camera);})();
-  document.getElementById('scan-overlay').classList.add('show');
-  setTimeout(()=>{if(!placed){document.getElementById('scan-overlay').classList.remove('show');document.getElementById('tap-hint').classList.add('show');}},3000);
+  // В видеорежиме (Android) не сканируем плоскость, сразу подсказываем тап
+  if(!isAndroid){
+    document.getElementById('scan-overlay').classList.add('show');
+    setTimeout(()=>{if(!placed){document.getElementById('scan-overlay').classList.remove('show');document.getElementById('tap-hint').classList.add('show');}},3000);
+  }else{
+    document.getElementById('tap-hint').classList.add('show');
+  }
   document.addEventListener('touchend',onTap,{passive:true});
   document.addEventListener('click',onTap);
 }
@@ -538,11 +543,16 @@ function onTap(e){
   ptr.x=(t.clientX/window.innerWidth)*2-1;
   ptr.y=-(t.clientY/window.innerHeight)*2+1;
   if(placed){raycaster.setFromCamera(ptr,camera);if(raycaster.intersectObject(pH).length>0)goToSite();return;}
-  if(hitFound){place(hitPos.clone());}
-  else{
-    const dir=new THREE.Vector3(0,0,-1.5).applyQuaternion(camera.quaternion);
-    const pos=camera.position.clone().add(dir); pos.y=camera.position.y-1.3;
-    place(pos);
+  // В WebXR используем hit-test, в видеорежиме просто ставим сцену перед камерой
+  if(xrSession){
+    if(hitFound){place(hitPos.clone());}
+    else{
+      const dir=new THREE.Vector3(0,0,-1.5).applyQuaternion(camera.quaternion);
+      const pos=camera.position.clone().add(dir); pos.y=camera.position.y-1.3;
+      place(pos);
+    }
+  }else{
+    place(new THREE.Vector3(0,0,-1.5));
   }
 }
 
