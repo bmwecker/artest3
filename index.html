@@ -335,6 +335,7 @@ retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 let placed=false,musicOn=false,captured=null;
 let xrSession=null,hitSrc=null,xrRef=null,hitFound=false,cameraStream=null;
 let capturePhotoRequested=false;
+let captureRenderTarget=null;
 const hitPos=new THREE.Vector3();
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
@@ -413,35 +414,40 @@ async function startWebXR(){
         }else{hitFound=false;retM.visible=false;retO.visible=false;}
       }
       renderer.render(scene,camera);
-      // Фото в WebXR: кадр из буфера XR (камера+сцена уже скомпонованы или только 3D)
+      // Фото в WebXR: рендер в отдельный target и чтение пикселей (буфер XR на Android не читается)
       if(capturePhotoRequested&&frame&&xrSession){
         capturePhotoRequested=false;
+        let w=1920,h=1080;
         const layer=xrSession.renderState.baseLayer;
-        if(layer){
-          try{
-            const gl=layer.context;
-            const w=layer.framebufferWidth,h=layer.framebufferHeight;
-            gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);
-            const pixels=new Uint8Array(w*h*4);
-            gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
-            gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-            const comp=document.createElement('canvas');comp.width=w;comp.height=h;
-            const ctx=comp.getContext('2d');
-            const grad=ctx.createLinearGradient(0,0,0,h);
-            grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a0a2e');
-            ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
-            const imgData=ctx.createImageData(w,h);
-            for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-              const src=(h-1-y)*w*4+x*4,dst=y*w*4+x*4;
-              imgData.data[dst]=pixels[src];imgData.data[dst+1]=pixels[src+1];
-              imgData.data[dst+2]=pixels[src+2];imgData.data[dst+3]=pixels[src+3];
-            }
-            const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;
-            tmp.getContext('2d').putImageData(imgData,0,0);
-            ctx.drawImage(tmp,0,0);
-            captured=comp.toDataURL('image/jpeg',0.93);
-          }catch(e){console.warn('XR capture failed',e);captured=null;}
-        }
+        if(layer){ w=layer.framebufferWidth; h=layer.framebufferHeight; }
+        try{
+          if(!captureRenderTarget||captureRenderTarget.width!==w||captureRenderTarget.height!==h){
+            if(captureRenderTarget)captureRenderTarget.dispose();
+            captureRenderTarget=new THREE.WebGLRenderTarget(w,h);
+          }
+          renderer.setRenderTarget(captureRenderTarget);
+          renderer.clear();
+          renderer.render(scene,camera);
+          const pixels=new Uint8Array(w*h*4);
+          renderer.readRenderTargetPixels(captureRenderTarget,0,0,w,h,pixels);
+          renderer.setRenderTarget(null);
+
+          const comp=document.createElement('canvas');comp.width=w;comp.height=h;
+          const ctx=comp.getContext('2d');
+          const grad=ctx.createLinearGradient(0,0,0,h);
+          grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a0a2e');
+          ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+          const imgData=ctx.createImageData(w,h);
+          for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+            const src=(h-1-y)*w*4+x*4,dst=y*w*4+x*4;
+            imgData.data[dst]=pixels[src];imgData.data[dst+1]=pixels[src+1];
+            imgData.data[dst+2]=pixels[src+2];imgData.data[dst+3]=pixels[src+3];
+          }
+          const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;
+          tmp.getContext('2d').putImageData(imgData,0,0);
+          ctx.drawImage(tmp,0,0);
+          captured=comp.toDataURL('image/jpeg',0.93);
+        }catch(e){console.warn('XR capture failed',e);captured=null;}
         const prev=document.getElementById('s-preview');
         if(captured){ prev.src=captured; prev.style.display='block'; }
         else{ prev.style.display='none'; }
