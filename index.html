@@ -354,6 +354,8 @@ function anim(t){
 }
 
 // ── СТАРТ ────────────
+let bgVideoStream = null; // хранит поток камеры для скриншота
+
 async function startAR(){
   const hasXR=navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
   if(hasXR){ await startWebXR(); }
@@ -363,6 +365,22 @@ async function startAR(){
 async function startWebXR(){
   document.getElementById('start-screen').classList.add('hidden');
   try{
+
+    // ШАГ 1: Открываем видео ДО XR — Chrome на Android позволяет
+    // держать getUserMedia и WebXR одновременно если открыть в таком порядке
+    const vid = document.getElementById('bg-video');
+    try{
+      let s;
+      try{ s = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false}); }
+      catch(e){ s = await navigator.mediaDevices.getUserMedia({video:true,audio:false}); }
+      bgVideoStream = s;
+      vid.srcObject = s;
+      // Скрытый но живой — opacity:0.001 не даёт браузеру остановить декодирование
+      vid.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.001;pointer-events:none;z-index:-1;';
+      await vid.play();
+    }catch(e){ console.warn('Pre-XR video failed:', e); }
+
+    // ШАГ 2: Запускаем WebXR
     xrSession=await navigator.xr.requestSession('immersive-ar',{
       requiredFeatures:['hit-test'],
       optionalFeatures:['dom-overlay','light-estimation'],
@@ -373,7 +391,10 @@ async function startWebXR(){
     xrRef=await xrSession.requestReferenceSpace('local');
     const vs=await xrSession.requestReferenceSpace('viewer');
     hitSrc=await xrSession.requestHitTestSource({space:vs});
-    xrSession.addEventListener('end',()=>{xrSession=null;hitSrc=null;});
+    xrSession.addEventListener('end',()=>{
+      xrSession=null; hitSrc=null;
+      if(bgVideoStream){ bgVideoStream.getTracks().forEach(t=>t.stop()); bgVideoStream=null; }
+    });
     document.getElementById('scan-overlay').classList.add('show');
     renderer.setAnimationLoop((ts,frame)=>{
       anim(ts/1000);
@@ -395,55 +416,63 @@ async function startWebXR(){
       }
       renderer.render(scene,camera);
 
-      // Захват фото прямо из WebXR framebuffer
+      // Захват фото: видео даёт фон камеры, Three.js даёт 3D поверх
       if(capturePhotoRequested && frame){
         capturePhotoRequested = false;
         try{
-          const gl = renderer.getContext();
-          const layer = xrSession.renderState.baseLayer;
-          const fw = layer ? layer.framebufferWidth  : gl.drawingBufferWidth;
-          const fh = layer ? layer.framebufferHeight : gl.drawingBufferHeight;
-
-          // Читаем пиксели из текущего WebXR framebuffer
-          // (renderer.render уже отрисовал 3D + камера идёт от XR compositor)
-          const pixels = new Uint8Array(fw * fh * 4);
-          if(layer) gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
-          gl.readPixels(0, 0, fw, fh, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-          // Переворачиваем по Y (WebGL координаты перевёрнуты)
           const sw = window.innerWidth, sh = window.innerHeight;
           const comp = document.createElement('canvas');
           comp.width = sw; comp.height = sh;
           const ctx = comp.getContext('2d');
 
-          const tmp = document.createElement('canvas');
-          tmp.width = fw; tmp.height = fh;
+          // 1. Фон — кадр из видеопотока камеры
+          const v = document.getElementById('bg-video');
+          if(v && v.readyState >= 2 && v.videoWidth > 0){
+            const vw=v.videoWidth, vh=v.videoHeight;
+            const scale=Math.max(sw/vw, sh/vh);
+            ctx.drawImage(v, (sw-vw*scale)/2, (sh-vh*scale)/2, vw*scale, vh*scale);
+          }
+
+          // 2. 3D поверх — рендерим в offscreen target чтобы не мешать XR
+          if(!captureRenderTarget || captureRenderTarget.width!==sw || captureRenderTarget.height!==sh){
+            if(captureRenderTarget) captureRenderTarget.dispose();
+            captureRenderTarget = new THREE.WebGLRenderTarget(sw, sh);
+          }
+          renderer.setRenderTarget(captureRenderTarget);
+          renderer.setClearColor(0x000000, 0);
+          renderer.clear();
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(null);
+
+          // Читаем пиксели из нашего target (не из XR framebuffer)
+          const pixels = new Uint8Array(sw * sh * 4);
+          renderer.readRenderTargetPixels(captureRenderTarget, 0, 0, sw, sh, pixels);
+
+          // Накладываем 3D поверх фона (переворот Y)
+          const tmp = document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
           const tctx = tmp.getContext('2d');
-          const imgData = tctx.createImageData(fw, fh);
-          for(let y = 0; y < fh; y++){
-            const srcRow = (fh - 1 - y) * fw * 4;
-            const dstRow = y * fw * 4;
-            imgData.data.set(pixels.subarray(srcRow, srcRow + fw*4), dstRow);
+          const imgData = tctx.createImageData(sw, sh);
+          for(let y=0; y<sh; y++){
+            const srcRow = (sh-1-y)*sw*4;
+            imgData.data.set(pixels.subarray(srcRow, srcRow+sw*4), y*sw*4);
           }
           tctx.putImageData(imgData, 0, 0);
-          // Масштабируем до размера экрана
-          ctx.drawImage(tmp, 0, 0, sw, sh);
+          ctx.drawImage(tmp, 0, 0);
 
           captured = comp.toDataURL('image/jpeg', 0.93);
         }catch(e){
-          console.warn('XR readPixels failed:', e);
+          console.warn('Photo capture failed:', e);
           captured = null;
         }
         const prev = document.getElementById('s-preview');
         if(captured){ prev.src=captured; prev.style.display='block'; }
-        else { prev.style.display='none'; }
+        else{ prev.style.display='none'; }
         openShare();
       }
     });
     document.addEventListener('touchend',onTap,{passive:true});
     document.addEventListener('click',onTap);
-  }catch(e){console.warn(e);await startVideoAR();}
+  }catch(e){console.warn('WebXR failed:',e);await startVideoAR();}
 }
 
 async function startVideoAR(){
