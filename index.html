@@ -365,7 +365,7 @@ async function startWebXR(){
   try{
     xrSession=await navigator.xr.requestSession('immersive-ar',{
       requiredFeatures:['hit-test'],
-      optionalFeatures:['dom-overlay','light-estimation'],
+      optionalFeatures:['dom-overlay','light-estimation','camera-access'],
       domOverlay:{root:document.body}
     });
     renderer.xr.setReferenceSpaceType('local');
@@ -414,13 +414,36 @@ async function startWebXR(){
         }else{hitFound=false;retM.visible=false;retO.visible=false;}
       }
       renderer.render(scene,camera);
-      // Фото в WebXR: рендер в отдельный target и чтение пикселей (буфер XR на Android не читается)
+      // Фото в WebXR: камера (Raw Camera Access) + 3D сцена поверх
       if(capturePhotoRequested&&frame&&xrSession){
         capturePhotoRequested=false;
         let w=1920,h=1080;
         const layer=xrSession.renderState.baseLayer;
         if(layer){ w=layer.framebufferWidth; h=layer.framebufferHeight; }
         try{
+          let cameraPixels=null,camW=0,camH=0;
+          const viewerPose=frame.getViewerPose(xrRef);
+          const view=viewerPose&&viewerPose.views&&viewerPose.views[0];
+          const xrCamera=view&&view.camera;
+          if(xrCamera&&typeof XRWebGLBinding!=='undefined'){
+            try{
+              const gl=layer.context;
+              const binding=new XRWebGLBinding(xrSession,gl);
+              const cameraTexture=binding.getCameraImage(xrCamera);
+              if(cameraTexture){
+                camW=xrCamera.width;camH=xrCamera.height;
+                const fb=gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,cameraTexture,0);
+                if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE){
+                  cameraPixels=new Uint8Array(camW*camH*4);
+                  gl.readPixels(0,0,camW,camH,gl.RGBA,gl.UNSIGNED_BYTE,cameraPixels);
+                }
+                gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+                gl.deleteFramebuffer(fb);
+              }
+            }catch(ce){console.warn('Camera image read failed',ce);}
+          }
           if(!captureRenderTarget||captureRenderTarget.width!==w||captureRenderTarget.height!==h){
             if(captureRenderTarget)captureRenderTarget.dispose();
             captureRenderTarget=new THREE.WebGLRenderTarget(w,h);
@@ -434,9 +457,31 @@ async function startWebXR(){
 
           const comp=document.createElement('canvas');comp.width=w;comp.height=h;
           const ctx=comp.getContext('2d');
-          const grad=ctx.createLinearGradient(0,0,0,h);
-          grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a0a2e');
-          ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+          if(cameraPixels&&camW>0&&camH>0){
+            const camImg=ctx.createImageData(camW,camH);
+            for(let y=0;y<camH;y++)for(let x=0;x<camW;x++){
+              const src=(camH-1-y)*camW*4+x*4,dst=y*camW*4+x*4;
+              camImg.data[dst]=cameraPixels[src];camImg.data[dst+1]=cameraPixels[src+1];
+              camImg.data[dst+2]=cameraPixels[src+2];camImg.data[dst+3]=cameraPixels[src+3];
+            }
+            const camCanvas=document.createElement('canvas');camCanvas.width=camW;camCanvas.height=camH;
+            camCanvas.getContext('2d').putImageData(camImg,0,0);
+            const scale=Math.max(w/camW,h/camH);
+            const sw=camW*scale,sh=camH*scale;
+            ctx.drawImage(camCanvas,0,0,camW,camH,(w-sw)/2,(h-sh)/2,sw,sh);
+          }else{
+            const vid=document.getElementById('bg-video');
+            if(vid&&vid.readyState>=2&&vid.videoWidth>0){
+              const vw=vid.videoWidth,vh=vid.videoHeight;
+              const scale=Math.max(w/vw,h/vh);
+              const sw=vw*scale,sh=vh*scale;
+              ctx.drawImage(vid,(w-sw)/2,(h-sh)/2,sw,sh);
+            }else{
+              const grad=ctx.createLinearGradient(0,0,0,h);
+              grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a0a2e');
+              ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+            }
+          }
           const imgData=ctx.createImageData(w,h);
           for(let y=0;y<h;y++)for(let x=0;x<w;x++){
             const src=(h-1-y)*w*4+x*4,dst=y*w*4+x*4;
