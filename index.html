@@ -362,10 +362,8 @@ async function startAR(){
 
 async function ensureScreenshotVideo(){
   const vid=document.getElementById('bg-video');
-  // Уже есть живой кадр
   if(vid && vid.readyState>=2 && vid.videoWidth>0) return true;
   try{
-    // Важно: просим камеру ДО XR-сессии — так чаще удаётся держать поток для фото
     const s = await navigator.mediaDevices.getUserMedia({
       video:{
         facingMode:{ideal:'environment'},
@@ -389,9 +387,6 @@ async function ensureScreenshotVideo(){
 async function startWebXR(){
   document.getElementById('start-screen').classList.add('hidden');
   try{
-    // Поднимаем отдельный поток камеры для фото (если получится)
-    await ensureScreenshotVideo();
-
     xrSession=await navigator.xr.requestSession('immersive-ar',{
       requiredFeatures:['hit-test'],
       optionalFeatures:['dom-overlay','light-estimation'],
@@ -532,9 +527,16 @@ function goToSite(){window.open(CFG.siteUrl,'_blank');}
 function takePhoto(){
   if(!placed)return;
   const fl=document.getElementById('flash');fl.classList.add('on');setTimeout(()=>fl.classList.remove('on'),120);
-  // В WebXR на Android камера занята сессией — захват делаем в следующем кадре из буфера XR
+  // В WebXR сначала пытаемся получить отдельный video-кадр для фона (если получится),
+  // затем делаем композит в рендер-цикле.
   if(xrSession){
-    capturePhotoRequested=true;
+    (async ()=>{
+      const vid=document.getElementById('bg-video');
+      if(!(vid && vid.readyState>=2 && vid.videoWidth>0)){
+        await ensureScreenshotVideo();
+      }
+      capturePhotoRequested=true;
+    })();
     return;
   }
   setTimeout(()=>{
