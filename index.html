@@ -333,7 +333,7 @@ const retO=new THREE.Mesh(new THREE.RingGeometry(0.09,0.11,32),new THREE.MeshBas
 retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 
 let placed=false,musicOn=false,captured=null;
-let xrSession=null,hitSrc=null,xrRef=null,hitFound=false,cameraStream=null;
+let xrSession=null,hitSrc=null,xrRef=null,hitFound=false;
 let capturePhotoRequested=false;
 let captureRenderTarget=null;
 const hitPos=new THREE.Vector3();
@@ -360,30 +360,6 @@ async function startAR(){
   else      { await startVideoAR(); }
 }
 
-async function ensureScreenshotVideo(){
-  const vid=document.getElementById('bg-video');
-  if(vid && vid.readyState>=2 && vid.videoWidth>0) return true;
-  try{
-    const s = await navigator.mediaDevices.getUserMedia({
-      video:{
-        facingMode:{ideal:'environment'},
-        width:{ideal:1280},
-        height:{ideal:720}
-      },
-      audio:false
-    });
-    cameraStream = s;
-    vid.srcObject = s;
-    // Не display:none — иначе на Android кадры часто перестают обновляться
-    vid.style.cssText='position:absolute;width:1px;height:1px;opacity:0.01;left:-9999px;pointer-events:none;';
-    await vid.play();
-    return (vid.readyState>=2 && vid.videoWidth>0);
-  }catch(e){
-    console.warn('Screenshot stream failed:',e);
-    return false;
-  }
-}
-
 async function startWebXR(){
   document.getElementById('start-screen').classList.add('hidden');
   try{
@@ -397,7 +373,7 @@ async function startWebXR(){
     xrRef=await xrSession.requestReferenceSpace('local');
     const vs=await xrSession.requestReferenceSpace('viewer');
     hitSrc=await xrSession.requestHitTestSource({space:vs});
-    xrSession.addEventListener('end',()=>{xrSession=null;hitSrc=null;cameraStream=null;});
+    xrSession.addEventListener('end',()=>{xrSession=null;hitSrc=null;});
     document.getElementById('scan-overlay').classList.add('show');
     renderer.setAnimationLoop((ts,frame)=>{
       anim(ts/1000);
@@ -418,52 +394,50 @@ async function startWebXR(){
         }else{hitFound=false;retM.visible=false;retO.visible=false;}
       }
       renderer.render(scene,camera);
-      // Фото в WebXR: берём кадр из отдельного video-потока + 3D поверх
-      if(capturePhotoRequested&&frame&&xrSession){
-        capturePhotoRequested=false;
-        let w=1920,h=1080;
-        const layer=xrSession.renderState.baseLayer;
-        if(layer){ w=layer.framebufferWidth; h=layer.framebufferHeight; }
-        try{
-          if(!captureRenderTarget||captureRenderTarget.width!==w||captureRenderTarget.height!==h){
-            if(captureRenderTarget)captureRenderTarget.dispose();
-            captureRenderTarget=new THREE.WebGLRenderTarget(w,h);
-          }
-          renderer.setRenderTarget(captureRenderTarget);
-          renderer.clear();
-          renderer.render(scene,camera);
-          const pixels=new Uint8Array(w*h*4);
-          renderer.readRenderTargetPixels(captureRenderTarget,0,0,w,h,pixels);
-          renderer.setRenderTarget(null);
 
-          const comp=document.createElement('canvas');comp.width=w;comp.height=h;
-          const ctx=comp.getContext('2d');
-          const vid=document.getElementById('bg-video');
-          if(vid&&vid.readyState>=2&&vid.videoWidth>0){
-            const vw=vid.videoWidth,vh=vid.videoHeight;
-            const scale=Math.max(w/vw,h/vh);
-            const sw=vw*scale,sh=vh*scale;
-            ctx.drawImage(vid,(w-sw)/2,(h-sh)/2,sw,sh);
-          }else{
-            // Если поток не удалось удержать — показываем понятный фолбек
-            const grad=ctx.createLinearGradient(0,0,0,h);
-            grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a0a2e');
-            ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+      // Захват фото прямо из WebXR framebuffer
+      if(capturePhotoRequested && frame){
+        capturePhotoRequested = false;
+        try{
+          const gl = renderer.getContext();
+          const layer = xrSession.renderState.baseLayer;
+          const fw = layer ? layer.framebufferWidth  : gl.drawingBufferWidth;
+          const fh = layer ? layer.framebufferHeight : gl.drawingBufferHeight;
+
+          // Читаем пиксели из текущего WebXR framebuffer
+          // (renderer.render уже отрисовал 3D + камера идёт от XR compositor)
+          const pixels = new Uint8Array(fw * fh * 4);
+          if(layer) gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+          gl.readPixels(0, 0, fw, fh, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+          // Переворачиваем по Y (WebGL координаты перевёрнуты)
+          const sw = window.innerWidth, sh = window.innerHeight;
+          const comp = document.createElement('canvas');
+          comp.width = sw; comp.height = sh;
+          const ctx = comp.getContext('2d');
+
+          const tmp = document.createElement('canvas');
+          tmp.width = fw; tmp.height = fh;
+          const tctx = tmp.getContext('2d');
+          const imgData = tctx.createImageData(fw, fh);
+          for(let y = 0; y < fh; y++){
+            const srcRow = (fh - 1 - y) * fw * 4;
+            const dstRow = y * fw * 4;
+            imgData.data.set(pixels.subarray(srcRow, srcRow + fw*4), dstRow);
           }
-          const imgData=ctx.createImageData(w,h);
-          for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-            const src=(h-1-y)*w*4+x*4,dst=y*w*4+x*4;
-            imgData.data[dst]=pixels[src];imgData.data[dst+1]=pixels[src+1];
-            imgData.data[dst+2]=pixels[src+2];imgData.data[dst+3]=pixels[src+3];
-          }
-          const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;
-          tmp.getContext('2d').putImageData(imgData,0,0);
-          ctx.drawImage(tmp,0,0);
-          captured=comp.toDataURL('image/jpeg',0.93);
-        }catch(e){console.warn('XR capture failed',e);captured=null;}
-        const prev=document.getElementById('s-preview');
+          tctx.putImageData(imgData, 0, 0);
+          // Масштабируем до размера экрана
+          ctx.drawImage(tmp, 0, 0, sw, sh);
+
+          captured = comp.toDataURL('image/jpeg', 0.93);
+        }catch(e){
+          console.warn('XR readPixels failed:', e);
+          captured = null;
+        }
+        const prev = document.getElementById('s-preview');
         if(captured){ prev.src=captured; prev.style.display='block'; }
-        else{ prev.style.display='none'; }
+        else { prev.style.display='none'; }
         openShare();
       }
     });
@@ -527,16 +501,9 @@ function goToSite(){window.open(CFG.siteUrl,'_blank');}
 function takePhoto(){
   if(!placed)return;
   const fl=document.getElementById('flash');fl.classList.add('on');setTimeout(()=>fl.classList.remove('on'),120);
-  // В WebXR сначала пытаемся получить отдельный video-кадр для фона (если получится),
-  // затем делаем композит в рендер-цикле.
   if(xrSession){
-    (async ()=>{
-      const vid=document.getElementById('bg-video');
-      if(!(vid && vid.readyState>=2 && vid.videoWidth>0)){
-        await ensureScreenshotVideo();
-      }
-      capturePhotoRequested=true;
-    })();
+    // В WebXR — ставим флаг, фото захватится в следующем кадре рендер-цикла
+    setTimeout(()=>{ capturePhotoRequested=true; }, 150);
     return;
   }
   setTimeout(()=>{
