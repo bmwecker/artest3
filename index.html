@@ -183,7 +183,7 @@
   </div>
 
   <!-- Кнопка сайта -->
-  <a class="ios-site-btn" href="https://ВАШ_САЙТ.tilda.ws" target="_blank">🌐 Перейти на сайт</a>
+  <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank">🌐 Перейти на сайт</a>
 </div>
 
 <!-- AR UI (только Android) -->
@@ -254,10 +254,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const CFG = {
-  siteUrl:  'https://ВАШ_САЙТ.tilda.ws',    // ← замените
+  siteUrl:  'https://alef-bet.tech/',
   shareText:'Посмотри этот AR-опыт! 🚀✨',
-  shareUrl: 'https://ВАШ-ДОМЕН.onrender.com', // ← замените
-  usdzFile: 'model.usdz',                     // ← ваш USDZ файл
+  shareUrl: 'https://alef-bet.tech/',
+  usdzFile: 'model.usdz',
 };
 
 // ── ОПРЕДЕЛЕНИЕ ПЛАТФОРМЫ ─────────────
@@ -402,6 +402,13 @@ function doXRCapture(){
     // Восстанавливаем состояние Three.js после ручных GL вызовов
     renderer.state.reset();
 
+    // Если камеру не получили — рисуем тёмный фон вместо чёрной пустоты
+    if(!gotCamera){
+      const grad=ctx.createLinearGradient(0,0,0,sh);
+      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
+      ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
+    }
+
     // ШАГ 2: рендерим 3D в offscreen target и накладываем поверх
     if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
       if(captureRenderTarget) captureRenderTarget.dispose();
@@ -416,7 +423,7 @@ function doXRCapture(){
     const px=new Uint8Array(sw*sh*4);
     renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
 
-    // Переворачиваем Y (WebGL снизу-вверх) и рисуем 3D поверх камеры
+    // Переворачиваем Y (WebGL снизу-вверх) и рисуем 3D поверх фона/камеры
     const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
     const tctx=tmp.getContext('2d');
     const id2=tctx.createImageData(sw,sh);
@@ -577,6 +584,10 @@ function takePhoto(){
       const w=window.innerWidth, h=window.innerHeight;
       const comp=document.createElement('canvas');comp.width=w;comp.height=h;
       const ctx=comp.getContext('2d');
+      // Всегда рисуем тёмный фон — JPEG не поддерживает прозрачность
+      const grad=ctx.createLinearGradient(0,0,0,h);
+      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
+      ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
       if(vid&&vid.readyState>=2&&vid.videoWidth>0){
         const vw=vid.videoWidth,vh=vid.videoHeight;
         const scale=Math.max(w/vw,h/vh);
