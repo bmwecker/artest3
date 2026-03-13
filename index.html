@@ -104,15 +104,15 @@
     #flash.on { opacity:1; }
  
     /* ── UI BAR ── */
-    #ui-bar { position:fixed; bottom:0; left:0; right:0; height:115px; z-index:50; display:flex; align-items:center; justify-content:space-around; padding:0 24px 22px; opacity:0; pointer-events:none; transition:opacity .7s ease .3s; }
+    #ui-bar { position:fixed; bottom:0; left:0; right:0; height:115px; z-index:50; display:flex; align-items:center; justify-content:space-around; padding:0 12px 22px; opacity:0; pointer-events:none; transition:opacity .7s ease .3s; }
     #ui-bar.show { opacity:1; pointer-events:all; }
     .ui-btn { display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
     .shutter { width:74px; height:74px; border-radius:50%; background:#fff; border:4px solid rgba(255,255,255,.3); box-shadow:0 0 0 2px rgba(255,255,255,.12),0 8px 28px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; }
     .shutter:active { transform:scale(.9); }
-    .pill { width:58px; height:58px; border-radius:18px; background:rgba(0,0,0,.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; }
+    .pill { width:52px; height:52px; border-radius:16px; background:rgba(0,0,0,.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; }
     .pill:active { transform:scale(.9); }
     .music-on .pill { background:rgba(0,229,255,.2); border-color:rgba(0,229,255,.45); }
-    .lbl { font-size:11px; font-weight:700; color:rgba(255,255,255,.85); text-shadow:0 1px 6px rgba(0,0,0,.9); }
+    .lbl { font-size:10px; font-weight:700; color:rgba(255,255,255,.85); text-shadow:0 1px 6px rgba(0,0,0,.9); }
     .bars { display:flex; align-items:flex-end; gap:3px; height:18px; }
     .bars span { width:3px; border-radius:2px; background:#fff; animation:bbar .7s ease-in-out infinite alternate; }
     .bars span:nth-child(1){height:6px} .bars span:nth-child(2){height:14px;animation-delay:.1s} .bars span:nth-child(3){height:9px;animation-delay:.2s} .bars span:nth-child(4){height:16px;animation-delay:.05s} .bars span:nth-child(5){height:7px;animation-delay:.15s}
@@ -183,7 +183,6 @@
   </div>
  
   <!-- Кнопка сайта -->
-  <a class="ios-site-btn" href="https://ВАШ_САЙТ.tilda.ws" target="_blank">🌐 Перейти на сайт</a>
   <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank">🌐 Перейти на сайт</a>
 </div>
  
@@ -221,6 +220,16 @@
     </div>
     <span class="lbl">Фото</span>
   </div>
+  <div class="ui-btn" onclick="reposition()">
+    <div class="pill">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/>
+        <polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/>
+        <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
+      </svg>
+    </div>
+    <span class="lbl">Переместить</span>
+  </div>
   <div class="ui-btn" onclick="goToSite()">
     <div class="pill">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -255,11 +264,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const CFG = {
-  siteUrl:  'https://ВАШ_САЙТ.tilda.ws',    // ← замените
   siteUrl:  'https://alef-bet.tech/',
   shareText:'Посмотри этот AR-опыт! 🚀✨',
-  shareUrl: 'https://ВАШ-ДОМЕН.onrender.com', // ← замените
-  usdzFile: 'model.usdz',                     // ← ваш USDZ файл
   shareUrl: 'https://alef-bet.tech/',
   usdzFile: 'model.usdz',
 };
@@ -271,7 +277,6 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 if(isIOS){
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('ios-screen').classList.add('show');
-  // Обновляем ссылку USDZ и сайта
   document.querySelector('.ios-ar-btn').href = CFG.usdzFile;
   document.querySelector('.ios-site-btn').href = CFG.siteUrl;
 }
@@ -335,14 +340,17 @@ const retM=new THREE.Mesh(new THREE.RingGeometry(0.05,0.08,32),new THREE.MeshBas
 retM.rotation.x=-Math.PI/2; retM.visible=false; scene.add(retM);
 const retO=new THREE.Mesh(new THREE.RingGeometry(0.09,0.11,32),new THREE.MeshBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.6,side:THREE.DoubleSide}));
 retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
- 
-let placed=false,musicOn=false,captured=null;
-let xrSession=null,hitSrc=null,xrRef=null,hitFound=false;
+
+let placed=false, musicOn=false, captured=null;
+let xrSession=null, hitSrc=null, xrRef=null, hitFound=false;
 let capturePhotoRequested=false;
 let captureRenderTarget=null;
+let cameraVideoEl=null;
+// XRWebGLBinding — прямой доступ к текстуре камеры (camera-access feature)
 let xrBinding=null, xrViewerPose=null;
 let blitProg=null, blitBuf=null;
- 
+
+// ── BLIT-ШЕЙДЕР для чтения текстуры XR-камеры ──
 function initBlitShader(){
   const gl=renderer.getContext();
   function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;}
@@ -355,15 +363,19 @@ function initBlitShader(){
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
   blitProg=p; blitBuf=b;
 }
- 
+
+// ── ЗАХВАТ В РЕЖИМЕ WebXR ─────────────
+// Приоритет: 1) XRWebGLBinding.getCameraImage(), 2) getUserMedia поток, 3) градиент
 function doXRCapture(){
-  const sw=window.innerWidth, sh=window.innerHeight;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const sw=Math.round(window.innerWidth*dpr);
+  const sh=Math.round(window.innerHeight*dpr);
   const gl=renderer.getContext();
   try{
     const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
     const ctx=comp.getContext('2d');
- 
-    // ШАГ 1: camera-access — реальная текстура камеры из WebXR
+
+    // Шаг 1: пробуем получить реальный кадр камеры через camera-access API
     let gotCamera=false;
     if(xrBinding && xrViewerPose && xrViewerPose.views.length>0){
       const view=xrViewerPose.views[0];
@@ -399,36 +411,48 @@ function doXRCapture(){
             const id=ctx.createImageData(sw,sh); id.data.set(camPx); ctx.putImageData(id,0,0);
             gotCamera=true;
           }
-        }catch(e){console.warn('camera-access blit failed:',e);}
+        }catch(e){ console.warn('camera-access blit failed:',e); }
       }
     }
  
     // Восстанавливаем состояние Three.js после ручных GL вызовов
     renderer.state.reset();
- 
-    // Если камеру не получили — рисуем тёмный фон вместо чёрной пустоты
+
+    // Шаг 2: если camera-access не сработал — пробуем отдельный getUserMedia поток
+    if(!gotCamera && cameraVideoEl && cameraVideoEl.readyState>=2 && cameraVideoEl.videoWidth>0){
+      const vw=cameraVideoEl.videoWidth, vh=cameraVideoEl.videoHeight;
+      const scale=Math.max(sw/vw, sh/vh);
+      ctx.drawImage(cameraVideoEl,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
+      gotCamera=true;
+    }
+
+    // Шаг 3: совсем нет камеры — тёмный фон вместо чёрной пустоты
     if(!gotCamera){
       const grad=ctx.createLinearGradient(0,0,0,sh);
       grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
       ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
     }
- 
-    // ШАГ 2: рендерим 3D в offscreen target и накладываем поверх
+
+    // Шаг 4: рендерим 3D в offscreen target и накладываем поверх фона
     if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
       if(captureRenderTarget) captureRenderTarget.dispose();
       captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
     }
+    const savedAspect=camera.aspect;
+    camera.aspect=sw/sh; camera.updateProjectionMatrix();
+
     renderer.setRenderTarget(captureRenderTarget);
     renderer.setClearColor(0x000000,0);
     renderer.clear();
     renderer.render(scene,camera);
     renderer.setRenderTarget(null);
- 
+    renderer.setClearColor(0x000000,0);
+
+    camera.aspect=savedAspect; camera.updateProjectionMatrix();
+
+    // Переворачиваем Y (WebGL — bottom-up) и накладываем 3D поверх фона
     const px=new Uint8Array(sw*sh*4);
     renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
- 
-    // Переворачиваем Y (WebGL снизу-вверх) и рисуем 3D поверх камеры
-    // Переворачиваем Y (WebGL снизу-вверх) и рисуем 3D поверх фона/камеры
     const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
     const tctx=tmp.getContext('2d');
     const id2=tctx.createImageData(sw,sh);
@@ -440,18 +464,92 @@ function doXRCapture(){
     ctx.drawImage(tmp,0,0);
  
     captured=comp.toDataURL('image/jpeg',0.93);
-  }catch(e){console.warn('doXRCapture failed:',e); captured=null;}
+  }catch(e){ console.warn('doXRCapture failed:',e); captured=null; }
+
   const prev=document.getElementById('s-preview');
-  if(captured){prev.src=captured;prev.style.display='block';}
-  else{prev.style.display='none';}
+  if(captured){ prev.src=captured; prev.style.display='block'; }
+  else { prev.style.display='none'; }
   openShare();
 }
+
+// ── ЗАХВАТ В РЕЖИМЕ VIDEO AR (не WebXR) ──
+// Фон берём из bg-video, 3D — через offscreen render target, полное DPR-разрешение
+function doVideoCapture(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const sw=Math.round(window.innerWidth*dpr);
+  const sh=Math.round(window.innerHeight*dpr);
+  try{
+    const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
+    const ctx=comp.getContext('2d');
+
+    // Фон: живая камера
+    const vid=document.getElementById('bg-video');
+    if(vid && vid.readyState>=2 && vid.videoWidth>0){
+      const vw=vid.videoWidth, vh=vid.videoHeight;
+      const scale=Math.max(sw/vw, sh/vh);
+      ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
+    } else {
+      const grad=ctx.createLinearGradient(0,0,0,sh);
+      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
+      ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
+    }
+
+    // 3D в offscreen render target
+    if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
+      if(captureRenderTarget) captureRenderTarget.dispose();
+      captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
+    }
+    const savedAspect=camera.aspect;
+    camera.aspect=sw/sh; camera.updateProjectionMatrix();
+
+    renderer.setRenderTarget(captureRenderTarget);
+    renderer.setClearColor(0x000000,0);
+    renderer.clear();
+    renderer.render(scene,camera);
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(0x000000,0);
+
+    camera.aspect=savedAspect; camera.updateProjectionMatrix();
+
+    const px=new Uint8Array(sw*sh*4);
+    renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
+    const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
+    const tctx=tmp.getContext('2d');
+    const id2=tctx.createImageData(sw,sh);
+    for(let y=0;y<sh;y++){
+      const src=(sh-1-y)*sw*4;
+      id2.data.set(px.subarray(src,src+sw*4),y*sw*4);
+    }
+    tctx.putImageData(id2,0,0);
+    ctx.drawImage(tmp,0,0);
+
+    captured=comp.toDataURL('image/jpeg',0.93);
+  }catch(e){ console.warn('doVideoCapture failed:',e); captured=null; }
+
+  const prev=document.getElementById('s-preview');
+  if(captured){ prev.src=captured; prev.style.display='block'; }
+  else { prev.style.display='none'; }
+  openShare();
+}
+
 const hitPos=new THREE.Vector3();
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
- 
-window.addEventListener('resize',()=>{renderer.setSize(window.innerWidth,window.innerHeight);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();});
- 
+
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// Перезапуск видео если вкладка была в фоне
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    const vid=document.getElementById('bg-video');
+    if(vid.srcObject && vid.paused) vid.play().catch(()=>{});
+  }
+});
+
 function anim(t){
   cG.rotation.y=t*0.9; cG.position.y=0.28+Math.sin(t*1.1)*0.04; cL.intensity=0.6+Math.sin(t*2.5)*0.3;
   r1.rotation.y+=0.009;r1.rotation.x+=0.004;r2.rotation.y-=0.007;r2.rotation.z+=0.005;
@@ -473,6 +571,19 @@ async function startAR(){
 async function startWebXR(){
   document.getElementById('start-screen').classList.add('hidden');
   try{
+    // Пробуем запустить поток камеры ДО XR-сессии — больше шансов получить его
+    try{
+      cameraVideoEl=document.createElement('video');
+      cameraVideoEl.setAttribute('playsinline','');
+      cameraVideoEl.muted=true;
+      const camStream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+        audio:false
+      });
+      cameraVideoEl.srcObject=camStream;
+      await cameraVideoEl.play();
+    }catch(e){ console.warn('Pre-XR camera stream failed:',e); cameraVideoEl=null; }
+
     xrSession=await navigator.xr.requestSession('immersive-ar',{
       requiredFeatures:['hit-test'],
       optionalFeatures:['dom-overlay','camera-access'],
@@ -489,14 +600,22 @@ async function startWebXR(){
     catch(e){ console.warn('XRWebGLBinding not supported:',e); }
  
     xrSession.addEventListener('end',()=>{
+      if(cameraVideoEl){const s=cameraVideoEl.srcObject;if(s)s.getTracks().forEach(t=>t.stop());cameraVideoEl=null;}
       xrSession=null; hitSrc=null; xrBinding=null; xrViewerPose=null;
+      // Сбрасываем UI: показываем стартовый экран вместо чёрного экрана
+      if(!placed){
+        document.getElementById('start-screen').classList.remove('hidden');
+        document.getElementById('scan-overlay').classList.remove('show');
+        document.getElementById('tap-hint').classList.remove('show');
+      }
     });
+
     document.getElementById('scan-overlay').classList.add('show');
     renderer.setAnimationLoop((ts,frame)=>{
       anim(ts/1000);
       if(frame){
-        // Сохраняем позу для захвата фото
-        xrViewerPose=frame.getViewerPose(xrRef);
+        // Сохраняем viewerPose для доступа в doXRCapture()
+        if(xrRef) xrViewerPose=frame.getViewerPose(xrRef);
         if(hitSrc&&!placed){
           const res=frame.getHitTestResults(hitSrc);
           if(res.length>0){
@@ -560,15 +679,41 @@ function onTap(e){
 function place(pos){
   placed=true; retM.visible=false; retO.visible=false;
   document.getElementById('tap-hint').classList.remove('show');
+  document.getElementById('scan-overlay').classList.remove('show');
   world.position.copy(pos); world.visible=true;
   const f=camera.position.clone();f.y=pos.y;world.lookAt(f);
   world.scale.setScalar(0.01);
   const g=()=>{const s=world.scale.x;if(s<1){world.scale.setScalar(Math.min(s+0.08,1));requestAnimationFrame(g);}};requestAnimationFrame(g);
   setTimeout(()=>document.getElementById('ui-bar').classList.add('show'),500);
-  setTimeout(startMusic,900);
+  // Запускаем музыку только если ещё не играет
+  setTimeout(()=>{ if(!musicOn) startMusic(); },900);
   setTimeout(()=>{const tip=document.getElementById('tooltip');tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),3500);},1800);
 }
- 
+
+// ── ПЕРЕМЕЩЕНИЕ ────────────
+function reposition(){
+  if(!placed) return;
+  placed=false;
+  world.visible=false;
+  retM.visible=false; retO.visible=false;
+  document.getElementById('ui-bar').classList.remove('show');
+  document.getElementById('tooltip').classList.remove('show');
+
+  if(xrSession){
+    hitFound=false;
+    document.getElementById('scan-overlay').classList.add('show');
+    document.getElementById('tap-hint').classList.remove('show');
+  } else {
+    document.getElementById('scan-overlay').classList.add('show');
+    setTimeout(()=>{
+      if(!placed){
+        document.getElementById('scan-overlay').classList.remove('show');
+        document.getElementById('tap-hint').classList.add('show');
+      }
+    },2500);
+  }
+}
+
 function startMusic(){audio.volume=0;audio.play().then(()=>{musicOn=true;updateMusicUI();let v=0;const fi=setInterval(()=>{v=Math.min(v+0.04,0.7);audio.volume=v;if(v>=0.7)clearInterval(fi);},80);}).catch(()=>{});}
 function toggleMusic(){if(!placed)return;musicOn?(audio.pause(),musicOn=false):(audio.play().catch(()=>{}),musicOn=true);updateMusicUI();}
 function updateMusicUI(){document.getElementById('music-btn').classList.toggle('music-on',musicOn);document.getElementById('bars').classList.toggle('paused',!musicOn);}
@@ -582,33 +727,8 @@ function takePhoto(){
     setTimeout(()=>{ capturePhotoRequested=true; },100);
     return;
   }
-  // Fallback (getUserMedia режим)
-  setTimeout(()=>{
-    try{
-      const vid=document.getElementById('bg-video');
-      const w=window.innerWidth, h=window.innerHeight;
-      const comp=document.createElement('canvas');comp.width=w;comp.height=h;
-      const ctx=comp.getContext('2d');
-      // Всегда рисуем тёмный фон — JPEG не поддерживает прозрачность
-      const grad=ctx.createLinearGradient(0,0,0,h);
-      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
-      ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
-      if(vid&&vid.readyState>=2&&vid.videoWidth>0){
-        const vw=vid.videoWidth,vh=vid.videoHeight;
-        const scale=Math.max(w/vw,h/vh);
-        ctx.drawImage(vid,(w-vw*scale)/2,(h-vh*scale)/2,vw*scale,vh*scale);
-      }
-      renderer.render(scene,camera);
-      ctx.drawImage(canvas,0,0,w,h);
-      captured=comp.toDataURL('image/jpeg',0.93);
-      document.getElementById('s-preview').src=captured;
-      document.getElementById('s-preview').style.display='block';
-    }catch(e){
-      try{renderer.render(scene,camera);captured=canvas.toDataURL('image/jpeg',0.93);document.getElementById('s-preview').src=captured;document.getElementById('s-preview').style.display='block';}
-      catch(e2){captured=null;document.getElementById('s-preview').style.display='none';}
-    }
-    openShare();
-  },150);
+  // Video AR mode — используем bg-video как фон
+  setTimeout(()=>{ doVideoCapture(); },150);
 }
  
 function openShare(){document.getElementById('share-bg').classList.add('show');document.getElementById('share-sheet').classList.add('show');}
