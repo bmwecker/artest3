@@ -571,17 +571,18 @@ async function startAR(){
 async function startWebXR(){
   document.getElementById('start-screen').classList.add('hidden');
   try{
-    // Пробуем запустить поток камеры ДО XR-сессии — больше шансов получить его
+    // Запускаем поток камеры в bg-video — будет виден через dom-overlay
+    // даже если XR-пассфру не работает на конкретном устройстве/браузере
+    const bgVideo=document.getElementById('bg-video');
     try{
-      cameraVideoEl=document.createElement('video');
-      cameraVideoEl.setAttribute('playsinline','');
-      cameraVideoEl.muted=true;
       const camStream=await navigator.mediaDevices.getUserMedia({
         video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
         audio:false
       });
-      cameraVideoEl.srcObject=camStream;
-      await cameraVideoEl.play();
+      bgVideo.srcObject=camStream;
+      await bgVideo.play();
+      bgVideo.style.display='block';
+      cameraVideoEl=bgVideo; // переиспользуем для захвата фото
     }catch(e){ console.warn('Pre-XR camera stream failed:',e); cameraVideoEl=null; }
 
     xrSession=await navigator.xr.requestSession('immersive-ar',{
@@ -594,13 +595,14 @@ async function startWebXR(){
     xrRef=await xrSession.requestReferenceSpace('local');
     const vs=await xrSession.requestReferenceSpace('viewer');
     hitSrc=await xrSession.requestHitTestSource({space:vs});
- 
+
     // XRWebGLBinding нужен для camera-access (получение текстуры камеры)
     try{ xrBinding=new XRWebGLBinding(xrSession,renderer.getContext()); }
     catch(e){ console.warn('XRWebGLBinding not supported:',e); }
- 
+
     xrSession.addEventListener('end',()=>{
-      if(cameraVideoEl){const s=cameraVideoEl.srcObject;if(s)s.getTracks().forEach(t=>t.stop());cameraVideoEl=null;}
+      const s=bgVideo.srcObject;if(s){s.getTracks().forEach(t=>t.stop());bgVideo.srcObject=null;bgVideo.style.display='none';}
+      cameraVideoEl=null;
       xrSession=null; hitSrc=null; xrBinding=null; xrViewerPose=null;
       // Сбрасываем UI: показываем стартовый экран вместо чёрного экрана
       if(!placed){
