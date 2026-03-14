@@ -7,10 +7,10 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family:-apple-system,sans-serif; }
- 
+
     #bg-video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; display:none; }
     #c { position:fixed; inset:0; width:100%; height:100%; display:block; z-index:1; }
- 
+
     /* ── СТАРТОВЫЙ ЭКРАН ── */
     #start-screen {
       position:fixed; inset:0; z-index:200;
@@ -29,7 +29,7 @@
       box-shadow:0 8px 32px rgba(124,58,237,.4);
     }
     .start-note { color:rgba(255,255,255,.28); font-size:12px; text-align:center; max-width:260px; line-height:1.7; }
- 
+
     /* ── iOS ЭКРАН ── */
     #ios-screen {
       position:fixed; inset:0; z-index:200;
@@ -38,7 +38,7 @@
       padding:32px;
     }
     #ios-screen.show { display:flex; }
- 
+
     .ios-badge {
       width:80px; height:80px; border-radius:22px;
       background:linear-gradient(135deg,#1c1c2e,#2d1b69);
@@ -49,7 +49,7 @@
     }
     .ios-title { font-size:26px; font-weight:800; color:#fff; letter-spacing:-0.5px; text-align:center; }
     .ios-sub   { color:rgba(255,255,255,.45); font-size:14px; text-align:center; max-width:260px; line-height:1.6; }
- 
+
     .ios-ar-btn {
       display:flex; align-items:center; gap:10px;
       margin-top:8px; padding:18px 36px; border:none; border-radius:50px;
@@ -60,7 +60,7 @@
       transition:transform .15s;
     }
     .ios-ar-btn:active { transform:scale(.96); }
- 
+
     .ios-features {
       display:flex; flex-direction:column; gap:10px;
       width:100%; max-width:300px; margin-top:4px;
@@ -73,14 +73,14 @@
     .ios-feat-icon { font-size:20px; width:28px; text-align:center; }
     .ios-feat-text { color:rgba(255,255,255,.7); font-size:13px; line-height:1.4; }
     .ios-feat-text b { color:#fff; display:block; font-size:13px; }
- 
+
     .ios-site-btn {
       padding:14px 32px; border:1px solid rgba(255,255,255,.2); border-radius:50px;
       background:transparent; color:rgba(255,255,255,.7);
       font-size:15px; font-weight:600; cursor:pointer; text-decoration:none;
       display:inline-block; margin-top:4px;
     }
- 
+
     /* ── SCAN ── */
     #scan-overlay {
       position:fixed; inset:0; z-index:10; pointer-events:none;
@@ -95,14 +95,14 @@
     @keyframes rpulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1} 50%{transform:translate(-50%,-50%) scale(1.8);opacity:.25} }
     .scan-box { background:rgba(0,0,0,.65); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:14px 22px; color:#fff; font-size:14px; text-align:center; max-width:260px; }
     .scan-box b { color:#00e5ff; display:block; margin-bottom:4px; font-size:15px; }
- 
+
     #tap-hint { position:fixed; bottom:145px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.65); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.2); border-radius:50px; padding:11px 22px; color:#fff; font-size:14px; font-weight:600; white-space:nowrap; z-index:20; pointer-events:none; opacity:0; transition:opacity .4s; }
     #tap-hint.show { opacity:1; }
     #tooltip { position:fixed; top:38%; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.7); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,.18); border-radius:50px; padding:10px 20px; color:#fff; font-size:13px; font-weight:600; white-space:nowrap; z-index:20; pointer-events:none; opacity:0; transition:opacity .35s; }
     #tooltip.show { opacity:1; }
     #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:999; transition:opacity .04s; }
     #flash.on { opacity:1; }
- 
+
     /* ── UI BAR ── */
     #ui-bar { position:fixed; bottom:0; left:0; right:0; height:115px; z-index:50; display:flex; align-items:center; justify-content:space-around; padding:0 12px 22px; opacity:0; pointer-events:none; transition:opacity .7s ease .3s; }
     #ui-bar.show { opacity:1; pointer-events:all; }
@@ -119,7 +119,7 @@
     @keyframes bbar{from{transform:scaleY(.3)}to{transform:scaleY(1)}}
     .bars.paused span { animation-play-state:paused; }
     .music-on .bars span { background:#00e5ff; }
- 
+
     /* ── SHARE ── */
     #share-bg { position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); opacity:0; pointer-events:none; transition:opacity .3s; }
     #share-bg.show { opacity:1; pointer-events:all; }
@@ -139,54 +139,48 @@
   </style>
 </head>
 <body>
- 
+
 <video id="bg-video" autoplay playsinline muted></video>
 <canvas id="c"></canvas>
- 
+
 <!-- ANDROID СТАРТ -->
 <div id="start-screen">
   <div class="logo">AR<span>.</span></div>
   <div class="logo-sub">Experience</div>
-  <button id="start-btn" onclick="startAR()">▶ Запустить AR</button>
+  <button id="start-btn" onclick="startAR()">&#9654; Запустить AR</button>
   <div class="start-note">Разрешите доступ к камере когда браузер спросит</div>
 </div>
- 
+
 <!-- iOS ЭКРАН -->
 <div id="ios-screen">
-  <div class="ios-badge">✨</div>
+  <div class="ios-badge">&#10024;</div>
   <div class="ios-title">AR Experience</div>
   <div class="ios-sub">Запустите дополненную реальность — объект появится прямо в вашей комнате</div>
- 
-  <!--
-    rel="ar" — магический атрибут Safari.
-    Когда ссылка ведёт на .usdz и есть rel="ar",
-    Safari автоматически открывает AR Quick Look.
-  -->
+
   <a class="ios-ar-btn" href="model.usdz" rel="ar">
-    <span>📱</span>
+    <span>&#128241;</span>
     <span>Открыть в AR</span>
   </a>
- 
+
   <div class="ios-features">
     <div class="ios-feat">
-      <div class="ios-feat-icon">🎯</div>
+      <div class="ios-feat-icon">&#127919;</div>
       <div class="ios-feat-text"><b>Точное позиционирование</b>Объект фиксируется на реальной поверхности</div>
     </div>
     <div class="ios-feat">
-      <div class="ios-feat-icon">📐</div>
+      <div class="ios-feat-icon">&#128208;</div>
       <div class="ios-feat-text"><b>Масштаб и поворот</b>Двумя пальцами можно изменить размер и угол</div>
     </div>
     <div class="ios-feat">
-      <div class="ios-feat-icon">📸</div>
+      <div class="ios-feat-icon">&#128248;</div>
       <div class="ios-feat-text"><b>Фото из AR</b>Кнопка камеры прямо в просмотрщике Apple</div>
     </div>
   </div>
- 
-  <!-- Кнопка сайта -->
-  <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank">🌐 Перейти на сайт</a>
+
+  <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank">&#127760; Перейти на сайт</a>
 </div>
- 
-<!-- AR UI (только Android) -->
+
+<!-- AR UI -->
 <div id="scan-overlay">
   <div class="reticle">
     <svg viewBox="0 0 190 190" fill="none">
@@ -202,11 +196,11 @@
   </div>
   <div class="scan-box"><b>Сканирование поверхности</b>Медленно водите камерой по полу или столу</div>
 </div>
- 
-<div id="tap-hint">👆 Нажмите чтобы разместить сцену</div>
-<div id="tooltip">🌐 Нажмите на портал чтобы открыть сайт</div>
+
+<div id="tap-hint">&#128070; Нажмите чтобы разместить сцену</div>
+<div id="tooltip">&#127760; Нажмите на портал чтобы открыть сайт</div>
 <div id="flash"></div>
- 
+
 <div id="ui-bar">
   <div class="ui-btn" id="music-btn" onclick="toggleMusic()">
     <div class="pill"><div class="bars paused" id="bars"><span></span><span></span><span></span><span></span><span></span></div></div>
@@ -240,7 +234,7 @@
     <span class="lbl">Сайт</span>
   </div>
 </div>
- 
+
 <div id="share-bg" onclick="closeShare()"></div>
 <div id="share-sheet">
   <div class="s-handle"></div>
@@ -248,57 +242,53 @@
   <div class="s-title">Поделиться фото</div>
   <div class="s-sub">Выберите приложение</div>
   <div class="s-grid">
-    <div class="sapp" onclick="shareTo('instagram')"><div class="sapp-ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)">📸</div><span class="sapp-lb">Instagram</span></div>
-    <div class="sapp" onclick="shareTo('telegram')"><div class="sapp-ic" style="background:#229ED9">✈️</div><span class="sapp-lb">Telegram</span></div>
-    <div class="sapp" onclick="shareTo('whatsapp')"><div class="sapp-ic" style="background:#25D366">💬</div><span class="sapp-lb">WhatsApp</span></div>
-    <div class="sapp" onclick="shareTo('vk')"><div class="sapp-ic" style="background:#4C75A3">🔵</div><span class="sapp-lb">ВКонтакте</span></div>
-    <div class="sapp" onclick="shareTo('x')"><div class="sapp-ic" style="background:#000">✖️</div><span class="sapp-lb">X</span></div>
-    <div class="sapp" onclick="shareTo('facebook')"><div class="sapp-ic" style="background:#1877F2">📘</div><span class="sapp-lb">Facebook</span></div>
-    <div class="sapp" onclick="shareTo('tiktok')"><div class="sapp-ic" style="background:linear-gradient(135deg,#010101,#69C9D0)">🎵</div><span class="sapp-lb">TikTok</span></div>
-    <div class="sapp" onclick="shareTo('native')"><div class="sapp-ic" style="background:rgba(255,255,255,.1)">📤</div><span class="sapp-lb">Ещё...</span></div>
+    <div class="sapp" onclick="shareTo('instagram')"><div class="sapp-ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)">&#128248;</div><span class="sapp-lb">Instagram</span></div>
+    <div class="sapp" onclick="shareTo('telegram')"><div class="sapp-ic" style="background:#229ED9">&#9992;&#65039;</div><span class="sapp-lb">Telegram</span></div>
+    <div class="sapp" onclick="shareTo('whatsapp')"><div class="sapp-ic" style="background:#25D366">&#128172;</div><span class="sapp-lb">WhatsApp</span></div>
+    <div class="sapp" onclick="shareTo('vk')"><div class="sapp-ic" style="background:#4C75A3">&#128309;</div><span class="sapp-lb">ВКонтакте</span></div>
+    <div class="sapp" onclick="shareTo('x')"><div class="sapp-ic" style="background:#000">&#10006;&#65039;</div><span class="sapp-lb">X</span></div>
+    <div class="sapp" onclick="shareTo('facebook')"><div class="sapp-ic" style="background:#1877F2">&#128216;</div><span class="sapp-lb">Facebook</span></div>
+    <div class="sapp" onclick="shareTo('tiktok')"><div class="sapp-ic" style="background:linear-gradient(135deg,#010101,#69C9D0)">&#127925;</div><span class="sapp-lb">TikTok</span></div>
+    <div class="sapp" onclick="shareTo('native')"><div class="sapp-ic" style="background:rgba(255,255,255,.1)">&#128228;</div><span class="sapp-lb">Ещё...</span></div>
   </div>
-  <button class="s-save" onclick="savePhoto()">⬇️ Сохранить в галерею</button>
+  <button class="s-save" onclick="savePhoto()">&#11015;&#65039; Сохранить в галерею</button>
   <button class="s-close" onclick="closeShare()">Закрыть</button>
 </div>
- 
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const CFG = {
   siteUrl:  'https://alef-bet.tech/',
-  shareText:'Посмотри этот AR-опыт! 🚀✨',
+  shareText:'Посмотри этот AR-опыт!',
   shareUrl: 'https://alef-bet.tech/',
   usdzFile: 'model.usdz',
 };
- 
+
 // ── ОПРЕДЕЛЕНИЕ ПЛАТФОРМЫ ─────────────
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
- 
-// Если iOS — сразу показываем iOS экран, Android стартовый скрываем
+
 if(isIOS){
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('ios-screen').classList.add('show');
   document.querySelector('.ios-ar-btn').href = CFG.usdzFile;
   document.querySelector('.ios-site-btn').href = CFG.siteUrl;
 }
- 
+
 // ── THREE.JS ──────────────────────────
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({
-  canvas, alpha:true, antialias:true
-});
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.xr.enabled = true;
 renderer.setClearColor(0x000000,0);
- 
+
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.01,100);
 scene.add(new THREE.AmbientLight(0xffffff,0.6));
 const dL=new THREE.DirectionalLight(0xffffff,1.1); dL.position.set(2,6,3); scene.add(dL);
- 
+
 const world=new THREE.Group(); world.visible=false; scene.add(world);
 const M=(c,m=0.9,r=0.08)=>new THREE.MeshStandardMaterial({color:c,metalness:m,roughness:r});
- 
+
 // Кристалл
 const cG=new THREE.Group(); cG.position.set(0,0.28,0); world.add(cG);
 const tC=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.28,6),M(0x00e5ff));
@@ -307,25 +297,25 @@ bC.rotation.z=Math.PI; bC.position.y=-0.14; cG.add(tC,bC);
 cG.add(new THREE.Mesh(new THREE.SphereGeometry(0.22,16,16),
   new THREE.MeshBasicMaterial({color:0x00e5ff,transparent:true,opacity:0.08,side:THREE.BackSide})));
 const cL=new THREE.PointLight(0x00e5ff,0.8,1.5); cG.add(cL);
- 
+
 const r1=new THREE.Mesh(new THREE.TorusGeometry(0.45,0.013,16,64),M(0x00e5ff));
 r1.rotation.set(1.3,0.3,0); r1.position.y=0.28; world.add(r1);
 const r2=new THREE.Mesh(new THREE.TorusGeometry(0.38,0.010,16,64),M(0x7c3aed));
 r2.rotation.set(-0.8,1.1,0); r2.position.y=0.28; world.add(r2);
- 
-function mkO(rad,c,y=0){const p=new THREE.Group();p.position.y=y;world.add(p);const s=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12),M(c,0.8,0.1));s.position.x=rad;p.add(s);return p;}
+
+function mkO(rad,c,y){const p=new THREE.Group();p.position.y=y||0;world.add(p);const s=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12),M(c,0.8,0.1));s.position.x=rad;p.add(s);return p;}
 const o1=mkO(0.58,0xff6b9d), o2=mkO(0.50,0xffd166,0.1), o3=mkO(0.54,0x06d6a0,-0.05);
- 
+
 const cube=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.16,0.16),M(0xffd166,0.85,0.15));
 cube.position.set(-0.65,0.22,0.1); world.add(cube);
- 
+
 const pG=new THREE.Group(); pG.position.set(0.7,0.28,-0.2); world.add(pG);
 const pR1=new THREE.Mesh(new THREE.TorusGeometry(0.21,0.024,16,64),M(0x7c3aed,1,0));
 const pR2=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.014,16,64),M(0x00e5ff,1,0));
 const pF=new THREE.Mesh(new THREE.CircleGeometry(0.18,32),new THREE.MeshBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.75,side:THREE.DoubleSide}));
 const pH=new THREE.Mesh(new THREE.CircleGeometry(0.3,32),new THREE.MeshBasicMaterial({visible:false,side:THREE.DoubleSide}));
 pG.add(pR1,pR2,pF,pH); pG.add(new THREE.PointLight(0x7c3aed,0.6,1.0));
- 
+
 const parts=[];
 for(let i=0;i<22;i++){
   const a=(i/22)*Math.PI*2,rad=0.25+Math.random()*0.65;
@@ -335,204 +325,18 @@ for(let i=0;i<22;i++){
   p.userData={baseY:p.position.y,speed:0.6+Math.random()*1.5,phase:Math.random()*Math.PI*2};
   world.add(p); parts.push(p);
 }
- 
+
+// Прицел размещения (3D кольца на «полу»)
 const retM=new THREE.Mesh(new THREE.RingGeometry(0.05,0.08,32),new THREE.MeshBasicMaterial({color:0x00e5ff,side:THREE.DoubleSide}));
 retM.rotation.x=-Math.PI/2; retM.visible=false; scene.add(retM);
 const retO=new THREE.Mesh(new THREE.RingGeometry(0.09,0.11,32),new THREE.MeshBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.6,side:THREE.DoubleSide}));
 retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 
+// Позиция размещения AR-сцены (перед камерой, чуть ниже центра)
+const PLACE_POS = new THREE.Vector3(0, -0.5, -1.8);
+
 let placed=false, musicOn=false, captured=null;
-let xrSession=null, hitSrc=null, xrRef=null, hitFound=false;
-let capturePhotoRequested=false;
 let captureRenderTarget=null;
-let cameraVideoEl=null;
-// XRWebGLBinding — прямой доступ к текстуре камеры (camera-access feature)
-let xrBinding=null, xrViewerPose=null;
-let blitProg=null, blitBuf=null;
-
-// ── BLIT-ШЕЙДЕР для чтения текстуры XR-камеры ──
-function initBlitShader(){
-  const gl=renderer.getContext();
-  function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;}
-  const p=gl.createProgram();
-  gl.attachShader(p,sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}'));
-  gl.attachShader(p,sh(gl.FRAGMENT_SHADER,'precision mediump float;uniform sampler2D t;uniform vec2 r;void main(){vec2 uv=gl_FragCoord.xy/r;gl_FragColor=texture2D(t,vec2(uv.x,1.0-uv.y));}'));
-  gl.linkProgram(p);
-  const b=gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER,b);
-  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
-  blitProg=p; blitBuf=b;
-}
-
-// ── ЗАХВАТ В РЕЖИМЕ WebXR ─────────────
-// Приоритет: 1) XRWebGLBinding.getCameraImage(), 2) getUserMedia поток, 3) градиент
-function doXRCapture(){
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  const sw=Math.round(window.innerWidth*dpr);
-  const sh=Math.round(window.innerHeight*dpr);
-  const gl=renderer.getContext();
-  try{
-    const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
-    const ctx=comp.getContext('2d');
-
-    // Шаг 1: пробуем получить реальный кадр камеры через camera-access API
-    let gotCamera=false;
-    if(xrBinding && xrViewerPose && xrViewerPose.views.length>0){
-      const view=xrViewerPose.views[0];
-      if(view.camera){
-        try{
-          const camTex=xrBinding.getCameraImage(view.camera);
-          if(camTex){
-            if(!blitProg) initBlitShader();
-            const fbo=gl.createFramebuffer(), outTex=gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D,outTex);
-            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,sw,sh,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
-            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-            gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,outTex,0);
-            gl.viewport(0,0,sw,sh);
-            gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
-            gl.useProgram(blitProg);
-            gl.bindBuffer(gl.ARRAY_BUFFER,blitBuf);
-            const aLoc=gl.getAttribLocation(blitProg,'a');
-            gl.enableVertexAttribArray(aLoc);
-            gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D,camTex);
-            gl.uniform1i(gl.getUniformLocation(blitProg,'t'),0);
-            gl.uniform2f(gl.getUniformLocation(blitProg,'r'),sw,sh);
-            gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-            const camPx=new Uint8Array(sw*sh*4);
-            gl.readPixels(0,0,sw,sh,gl.RGBA,gl.UNSIGNED_BYTE,camPx);
-            gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-            gl.deleteFramebuffer(fbo); gl.deleteTexture(outTex);
-            const id=ctx.createImageData(sw,sh); id.data.set(camPx); ctx.putImageData(id,0,0);
-            gotCamera=true;
-          }
-        }catch(e){ console.warn('camera-access blit failed:',e); }
-      }
-    }
- 
-    // Восстанавливаем состояние Three.js после ручных GL вызовов
-    renderer.state.reset();
-
-    // Шаг 2: если camera-access не сработал — пробуем отдельный getUserMedia поток
-    if(!gotCamera && cameraVideoEl && cameraVideoEl.readyState>=2 && cameraVideoEl.videoWidth>0){
-      const vw=cameraVideoEl.videoWidth, vh=cameraVideoEl.videoHeight;
-      const scale=Math.max(sw/vw, sh/vh);
-      ctx.drawImage(cameraVideoEl,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
-      gotCamera=true;
-    }
-
-    // Шаг 3: совсем нет камеры — тёмный фон вместо чёрной пустоты
-    if(!gotCamera){
-      const grad=ctx.createLinearGradient(0,0,0,sh);
-      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
-      ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
-    }
-
-    // Шаг 4: рендерим 3D в offscreen target и накладываем поверх фона
-    if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
-      if(captureRenderTarget) captureRenderTarget.dispose();
-      captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
-    }
-    const savedAspect=camera.aspect;
-    camera.aspect=sw/sh; camera.updateProjectionMatrix();
-
-    renderer.setRenderTarget(captureRenderTarget);
-    renderer.setClearColor(0x000000,0);
-    renderer.clear();
-    renderer.render(scene,camera);
-    renderer.setRenderTarget(null);
-    renderer.setClearColor(0x000000,0);
-
-    camera.aspect=savedAspect; camera.updateProjectionMatrix();
-
-    // Переворачиваем Y (WebGL — bottom-up) и накладываем 3D поверх фона
-    const px=new Uint8Array(sw*sh*4);
-    renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
-    const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
-    const tctx=tmp.getContext('2d');
-    const id2=tctx.createImageData(sw,sh);
-    for(let y=0;y<sh;y++){
-      const src=(sh-1-y)*sw*4;
-      id2.data.set(px.subarray(src,src+sw*4),y*sw*4);
-    }
-    tctx.putImageData(id2,0,0);
-    ctx.drawImage(tmp,0,0);
- 
-    captured=comp.toDataURL('image/jpeg',0.93);
-  }catch(e){ console.warn('doXRCapture failed:',e); captured=null; }
-
-  const prev=document.getElementById('s-preview');
-  if(captured){ prev.src=captured; prev.style.display='block'; }
-  else { prev.style.display='none'; }
-  openShare();
-}
-
-// ── ЗАХВАТ В РЕЖИМЕ VIDEO AR (не WebXR) ──
-// Фон берём из bg-video, 3D — через offscreen render target, полное DPR-разрешение
-function doVideoCapture(){
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  const sw=Math.round(window.innerWidth*dpr);
-  const sh=Math.round(window.innerHeight*dpr);
-  try{
-    const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
-    const ctx=comp.getContext('2d');
-
-    // Фон: живая камера
-    const vid=document.getElementById('bg-video');
-    if(vid && vid.readyState>=2 && vid.videoWidth>0){
-      const vw=vid.videoWidth, vh=vid.videoHeight;
-      const scale=Math.max(sw/vw, sh/vh);
-      ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
-    } else {
-      const grad=ctx.createLinearGradient(0,0,0,sh);
-      grad.addColorStop(0,'#0d0d1a'); grad.addColorStop(1,'#1a0a2e');
-      ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
-    }
-
-    // 3D в offscreen render target
-    if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
-      if(captureRenderTarget) captureRenderTarget.dispose();
-      captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
-    }
-    const savedAspect=camera.aspect;
-    camera.aspect=sw/sh; camera.updateProjectionMatrix();
-
-    renderer.setRenderTarget(captureRenderTarget);
-    renderer.setClearColor(0x000000,0);
-    renderer.clear();
-    renderer.render(scene,camera);
-    renderer.setRenderTarget(null);
-    renderer.setClearColor(0x000000,0);
-
-    camera.aspect=savedAspect; camera.updateProjectionMatrix();
-
-    const px=new Uint8Array(sw*sh*4);
-    renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
-    const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
-    const tctx=tmp.getContext('2d');
-    const id2=tctx.createImageData(sw,sh);
-    for(let y=0;y<sh;y++){
-      const src=(sh-1-y)*sw*4;
-      id2.data.set(px.subarray(src,src+sw*4),y*sw*4);
-    }
-    tctx.putImageData(id2,0,0);
-    ctx.drawImage(tmp,0,0);
-
-    captured=comp.toDataURL('image/jpeg',0.93);
-  }catch(e){ console.warn('doVideoCapture failed:',e); captured=null; }
-
-  const prev=document.getElementById('s-preview');
-  if(captured){ prev.src=captured; prev.style.display='block'; }
-  else { prev.style.display='none'; }
-  openShare();
-}
-
-const hitPos=new THREE.Vector3();
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
 
@@ -559,103 +363,16 @@ function anim(t){
   pF.material.opacity=0.6+Math.sin(t*3.5)*0.2;
   if(placed)pG.lookAt(camera.position);
   parts.forEach(p=>{p.position.y=p.userData.baseY+Math.sin(t*p.userData.speed+p.userData.phase)*0.07;});
+  // Пульсация прицела
+  if(retM.visible) retO.scale.setScalar(1+Math.sin(t*3)*0.15);
 }
- 
+
 // ── СТАРТ ────────────
 async function startAR(){
-  const hasXR=navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
-  if(hasXR){ await startWebXR(); }
-  else      { await startVideoAR(); }
-}
- 
-async function startWebXR(){
-  document.getElementById('start-screen').classList.add('hidden');
-  try{
-    // Запускаем поток камеры в bg-video — будет виден через dom-overlay
-    // даже если XR-пассфру не работает на конкретном устройстве/браузере
-    const bgVideo=document.getElementById('bg-video');
-    try{
-      const camStream=await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
-        audio:false
-      });
-      bgVideo.srcObject=camStream;
-      await bgVideo.play();
-      bgVideo.style.display='block';
-      cameraVideoEl=bgVideo; // переиспользуем для захвата фото
-    }catch(e){ console.warn('Pre-XR camera stream failed:',e); cameraVideoEl=null; }
-
-    xrSession=await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['hit-test'],
-      optionalFeatures:['dom-overlay','camera-access'],
-      domOverlay:{root:document.body}
-    });
-    renderer.xr.setReferenceSpaceType('local');
-    await renderer.xr.setSession(xrSession);
-    xrRef=await xrSession.requestReferenceSpace('local');
-    const vs=await xrSession.requestReferenceSpace('viewer');
-    hitSrc=await xrSession.requestHitTestSource({space:vs});
-
-    // XRWebGLBinding нужен для camera-access (получение текстуры камеры)
-    try{ xrBinding=new XRWebGLBinding(xrSession,renderer.getContext()); }
-    catch(e){ console.warn('XRWebGLBinding not supported:',e); }
-
-    xrSession.addEventListener('end',()=>{
-      const s=bgVideo.srcObject;if(s){s.getTracks().forEach(t=>t.stop());bgVideo.srcObject=null;bgVideo.style.display='none';}
-      cameraVideoEl=null;
-      xrSession=null; hitSrc=null; xrBinding=null; xrViewerPose=null;
-      // Сбрасываем UI: показываем стартовый экран вместо чёрного экрана
-      if(!placed){
-        document.getElementById('start-screen').classList.remove('hidden');
-        document.getElementById('scan-overlay').classList.remove('show');
-        document.getElementById('tap-hint').classList.remove('show');
-      }
-    });
-
-    document.getElementById('scan-overlay').classList.add('show');
-    // Таймаут на случай если hit-test не находит поверхность
-    setTimeout(()=>{
-      if(!placed&&!document.getElementById('tap-hint').classList.contains('show')){
-        document.getElementById('scan-overlay').classList.remove('show');
-        document.getElementById('tap-hint').classList.add('show');
-      }
-    },6000);
-    renderer.setAnimationLoop((ts,frame)=>{
-      renderer.setClearColor(0x000000,0); // гарантируем прозрачный фон каждый кадр
-      anim(ts/1000);
-      if(frame){
-        // Сохраняем viewerPose для доступа в doXRCapture()
-        if(xrRef) xrViewerPose=frame.getViewerPose(xrRef);
-        if(hitSrc&&!placed){
-          const res=frame.getHitTestResults(hitSrc);
-          if(res.length>0){
-            const pose=res[0].getPose(xrRef);
-            if(pose){
-              hitFound=true;
-              hitPos.setFromMatrixPosition(new THREE.Matrix4().fromArray(pose.transform.matrix));
-              retM.position.copy(hitPos);retM.position.y+=0.002;retM.visible=true;
-              retO.position.copy(retM.position);retO.visible=true;
-              if(!document.getElementById('tap-hint').classList.contains('show')){
-                document.getElementById('scan-overlay').classList.remove('show');
-                document.getElementById('tap-hint').classList.add('show');
-              }
-            }
-          }else{hitFound=false;retM.visible=false;retO.visible=false;}
-        }
-      }
-      renderer.render(scene,camera);
-      if(capturePhotoRequested){ capturePhotoRequested=false; doXRCapture(); }
-    });
-    document.addEventListener('touchend',onTap,{passive:true});
-    document.addEventListener('click',onTap);
-  }catch(e){ console.warn('WebXR failed:',e); await startVideoAR(); }
-}
- 
-async function startVideoAR(){
   const video=document.getElementById('bg-video');
   try{
     let s;
-    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});}
+    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
     catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
     video.srcObject=s; await video.play(); video.style.display='block';
   }catch(err){
@@ -663,29 +380,50 @@ async function startVideoAR(){
     alert('Не удалось открыть камеру.\n'+err.message); return;
   }
   document.getElementById('start-screen').classList.add('hidden');
+
+  // Рендер-цикл
   let ft=0,lt=performance.now();
-  (function loop(){requestAnimationFrame(loop);const n=performance.now();ft+=(n-lt)/1000;lt=n;anim(ft);renderer.render(scene,camera);})();
+  (function loop(){
+    requestAnimationFrame(loop);
+    const n=performance.now(); ft+=(n-lt)/1000; lt=n;
+    anim(ft);
+    renderer.render(scene,camera);
+  })();
+
+  // Фаза «сканирования» (3 сек анимация) → показать прицел → ждать тап
   document.getElementById('scan-overlay').classList.add('show');
-  setTimeout(()=>{if(!placed){document.getElementById('scan-overlay').classList.remove('show');document.getElementById('tap-hint').classList.add('show');}},3000);
+  setTimeout(()=>{
+    if(!placed){
+      document.getElementById('scan-overlay').classList.remove('show');
+      showReticle();
+      document.getElementById('tap-hint').classList.add('show');
+    }
+  },3000);
+
   document.addEventListener('touchend',onTap,{passive:true});
   document.addEventListener('click',onTap);
 }
- 
+
+function showReticle(){
+  retM.position.set(PLACE_POS.x, PLACE_POS.y+0.002, PLACE_POS.z);
+  retO.position.set(PLACE_POS.x, PLACE_POS.y, PLACE_POS.z);
+  retM.visible=true; retO.visible=true;
+}
+
 function onTap(e){
   const skip=['#ui-bar','#share-sheet','#share-bg','#start-screen','#ios-screen'];
   if(e.target.closest&&skip.some(s=>e.target.closest(s)))return;
-  const t=e.changedTouches?e.changedTouches[0]:e;
-  ptr.x=(t.clientX/window.innerWidth)*2-1;
-  ptr.y=-(t.clientY/window.innerHeight)*2+1;
-  if(placed){raycaster.setFromCamera(ptr,camera);if(raycaster.intersectObject(pH).length>0)goToSite();return;}
-  if(hitFound){place(hitPos.clone());}
-  else{
-    const dir=new THREE.Vector3(0,0,-1.5).applyQuaternion(camera.quaternion);
-    const pos=camera.position.clone().add(dir); pos.y=camera.position.y-1.3;
-    place(pos);
+  if(placed){
+    const t=e.changedTouches?e.changedTouches[0]:e;
+    ptr.x=(t.clientX/window.innerWidth)*2-1;
+    ptr.y=-(t.clientY/window.innerHeight)*2+1;
+    raycaster.setFromCamera(ptr,camera);
+    if(raycaster.intersectObject(pH).length>0)goToSite();
+    return;
   }
+  place(PLACE_POS.clone());
 }
- 
+
 function place(pos){
   placed=true; retM.visible=false; retO.visible=false;
   document.getElementById('tap-hint').classList.remove('show');
@@ -695,7 +433,6 @@ function place(pos){
   world.scale.setScalar(0.01);
   const g=()=>{const s=world.scale.x;if(s<1){world.scale.setScalar(Math.min(s+0.08,1));requestAnimationFrame(g);}};requestAnimationFrame(g);
   setTimeout(()=>document.getElementById('ui-bar').classList.add('show'),500);
-  // Запускаем музыку только если ещё не играет
   setTimeout(()=>{ if(!musicOn) startMusic(); },900);
   setTimeout(()=>{const tip=document.getElementById('tooltip');tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),3500);},1800);
 }
@@ -708,39 +445,85 @@ function reposition(){
   retM.visible=false; retO.visible=false;
   document.getElementById('ui-bar').classList.remove('show');
   document.getElementById('tooltip').classList.remove('show');
-
-  if(xrSession){
-    hitFound=false;
-    document.getElementById('scan-overlay').classList.add('show');
-    document.getElementById('tap-hint').classList.remove('show');
-  } else {
-    document.getElementById('scan-overlay').classList.add('show');
-    setTimeout(()=>{
-      if(!placed){
-        document.getElementById('scan-overlay').classList.remove('show');
-        document.getElementById('tap-hint').classList.add('show');
-      }
-    },2500);
-  }
+  document.getElementById('scan-overlay').classList.add('show');
+  setTimeout(()=>{
+    if(!placed){
+      document.getElementById('scan-overlay').classList.remove('show');
+      showReticle();
+      document.getElementById('tap-hint').classList.add('show');
+    }
+  },2500);
 }
 
+// ── МУЗЫКА ────────────
 function startMusic(){audio.volume=0;audio.play().then(()=>{musicOn=true;updateMusicUI();let v=0;const fi=setInterval(()=>{v=Math.min(v+0.04,0.7);audio.volume=v;if(v>=0.7)clearInterval(fi);},80);}).catch(()=>{});}
 function toggleMusic(){if(!placed)return;musicOn?(audio.pause(),musicOn=false):(audio.play().catch(()=>{}),musicOn=true);updateMusicUI();}
 function updateMusicUI(){document.getElementById('music-btn').classList.toggle('music-on',musicOn);document.getElementById('bars').classList.toggle('paused',!musicOn);}
 function goToSite(){window.open(CFG.siteUrl,'_blank');}
- 
+
+// ── ФОТО (камера + 3D composite) ────────────
 function takePhoto(){
   if(!placed)return;
   const fl=document.getElementById('flash');fl.classList.add('on');setTimeout(()=>fl.classList.remove('on'),120);
-  if(xrSession){
-    // В WebXR — захват через doXRCapture() в следующем кадре рендер-цикла
-    setTimeout(()=>{ capturePhotoRequested=true; },100);
-    return;
-  }
-  // Video AR mode — используем bg-video как фон
-  setTimeout(()=>{ doVideoCapture(); },150);
+  setTimeout(()=>{ doCapture(); },150);
 }
- 
+
+function doCapture(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const sw=Math.round(window.innerWidth*dpr);
+  const sh=Math.round(window.innerHeight*dpr);
+  try{
+    const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
+    const ctx=comp.getContext('2d');
+
+    // Слой 1: кадр с камеры
+    const vid=document.getElementById('bg-video');
+    if(vid && vid.readyState>=2 && vid.videoWidth>0){
+      const vw=vid.videoWidth, vh=vid.videoHeight;
+      const scale=Math.max(sw/vw, sh/vh);
+      ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
+    }
+
+    // Слой 2: 3D-сцена через offscreen render target
+    if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
+      if(captureRenderTarget) captureRenderTarget.dispose();
+      captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
+    }
+    const savedAspect=camera.aspect;
+    camera.aspect=sw/sh; camera.updateProjectionMatrix();
+
+    renderer.setRenderTarget(captureRenderTarget);
+    renderer.setClearColor(0x000000,0);
+    renderer.clear();
+    renderer.render(scene,camera);
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(0x000000,0);
+
+    camera.aspect=savedAspect; camera.updateProjectionMatrix();
+
+    // Читаем пиксели 3D, переворачиваем Y, накладываем поверх камеры
+    const px=new Uint8Array(sw*sh*4);
+    renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
+    const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
+    const tctx=tmp.getContext('2d');
+    const id2=tctx.createImageData(sw,sh);
+    for(let y=0;y<sh;y++){
+      const src=(sh-1-y)*sw*4;
+      id2.data.set(px.subarray(src,src+sw*4),y*sw*4);
+    }
+    tctx.putImageData(id2,0,0);
+    ctx.drawImage(tmp,0,0);
+
+    captured=comp.toDataURL('image/jpeg',0.93);
+  }catch(e){ console.warn('Photo capture failed:',e); captured=null; }
+
+  const prev=document.getElementById('s-preview');
+  if(captured){ prev.src=captured; prev.style.display='block'; }
+  else { prev.style.display='none'; }
+  openShare();
+}
+
+// ── SHARE ────────────
 function openShare(){document.getElementById('share-bg').classList.add('show');document.getElementById('share-sheet').classList.add('show');}
 function closeShare(){document.getElementById('share-bg').classList.remove('show');document.getElementById('share-sheet').classList.remove('show');}
 async function shareTo(app){
@@ -751,8 +534,8 @@ async function shareTo(app){
   if(L[app]){window.open(L[app],'_blank');closeShare();}
 }
 function savePhoto(){if(!captured)return;savePhotoFile();}
-function savePhotoFile(){const a=document.createElement('a');a.href=captured;a.download=`ar-${Date.now()}.jpg`;a.click();}
-function d2b(du){const[h,d]=du.split(',');const mime=h.match(/:(.*?);/)[1];const bin=atob(d);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:mime});}
+function savePhotoFile(){const a=document.createElement('a');a.href=captured;a.download='ar-'+Date.now()+'.jpg';a.click();}
+function d2b(du){const p=du.split(',');const mime=p[0].match(/:(.*?);/)[1];const bin=atob(p[1]);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:mime});}
 </script>
 </body>
 </html>
