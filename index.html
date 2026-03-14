@@ -284,7 +284,7 @@ if(isIOS){
 // ── THREE.JS ──────────────────────────
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({
-  canvas, alpha:true, antialias:true, preserveDrawingBuffer:true
+  canvas, alpha:true, antialias:true
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
@@ -611,7 +611,15 @@ async function startWebXR(){
     });
 
     document.getElementById('scan-overlay').classList.add('show');
+    // Таймаут на случай если hit-test не находит поверхность
+    setTimeout(()=>{
+      if(!placed&&!document.getElementById('tap-hint').classList.contains('show')){
+        document.getElementById('scan-overlay').classList.remove('show');
+        document.getElementById('tap-hint').classList.add('show');
+      }
+    },6000);
     renderer.setAnimationLoop((ts,frame)=>{
+      renderer.setClearColor(0x000000,0); // гарантируем прозрачный фон каждый кадр
       anim(ts/1000);
       if(frame){
         // Сохраняем viewerPose для доступа в doXRCapture()
