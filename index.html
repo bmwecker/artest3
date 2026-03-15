@@ -332,13 +332,40 @@ retM.rotation.x=-Math.PI/2; retM.visible=false; scene.add(retM);
 const retO=new THREE.Mesh(new THREE.RingGeometry(0.09,0.11,32),new THREE.MeshBasicMaterial({color:0x7c3aed,transparent:true,opacity:0.6,side:THREE.DoubleSide}));
 retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 
-// Позиция размещения AR-сцены (перед камерой, чуть ниже центра)
-const PLACE_POS = new THREE.Vector3(0, -0.5, -1.8);
+// Позиция прицела в camera-space (чуть ниже центра, перед камерой)
+const LOCAL_RETICLE = new THREE.Vector3(0, -0.4, -1.5);
 
 let placed=false, musicOn=false, captured=null;
 let captureRenderTarget=null;
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
+
+// ── DEVICE ORIENTATION (гироскоп) ────────────
+// Вращаем Three.js камеру по данным гироскопа — объекты фиксируются в пространстве
+let devAlpha=0, devBeta=90, devGamma=0, orientReady=false;
+const _dq1 = new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5));
+const _dq2 = new THREE.Quaternion();
+const _de  = new THREE.Euler();
+
+function updateCameraFromDevice(){
+  if(!orientReady) return;
+  _de.set(
+    THREE.MathUtils.degToRad(devBeta),
+    THREE.MathUtils.degToRad(devAlpha),
+    THREE.MathUtils.degToRad(-devGamma),
+    'YXZ'
+  );
+  camera.quaternion.setFromEuler(_de);
+  camera.quaternion.multiply(_dq1);
+  const screenAngle = window.screen?.orientation?.angle ?? (window.orientation||0);
+  _dq2.setFromAxisAngle(new THREE.Vector3(0,0,1), -THREE.MathUtils.degToRad(screenAngle));
+  camera.quaternion.multiply(_dq2);
+}
+
+function onDeviceOrientation(e){
+  if(e.alpha==null) return;
+  devAlpha=e.alpha; devBeta=e.beta; devGamma=e.gamma; orientReady=true;
+}
 
 window.addEventListener('resize',()=>{
   renderer.setSize(window.innerWidth,window.innerHeight);
@@ -369,6 +396,13 @@ function anim(t){
 
 // ── СТАРТ ────────────
 async function startAR(){
+  // iOS 13+: запрашиваем разрешение на гироскоп (должно быть внутри user gesture)
+  if(typeof DeviceOrientationEvent !== 'undefined' &&
+     typeof DeviceOrientationEvent.requestPermission === 'function'){
+    try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+  }
+  window.addEventListener('deviceorientation', onDeviceOrientation, true);
+
   const video=document.getElementById('bg-video');
   try{
     let s;
@@ -386,28 +420,29 @@ async function startAR(){
   (function loop(){
     requestAnimationFrame(loop);
     const n=performance.now(); ft+=(n-lt)/1000; lt=n;
+    updateCameraFromDevice();
+    // Прицел всегда следует за камерой (camera-space → world-space)
+    if(retM.visible){
+      const wp=LOCAL_RETICLE.clone().applyQuaternion(camera.quaternion);
+      retM.position.set(wp.x, wp.y+0.002, wp.z);
+      retO.position.set(wp.x, wp.y, wp.z);
+    }
     anim(ft);
     renderer.render(scene,camera);
   })();
 
-  // Фаза «сканирования» (3 сек анимация) → показать прицел → ждать тап
+  // Фаза «сканирования» (3 сек) → прицел → ждать тап
   document.getElementById('scan-overlay').classList.add('show');
   setTimeout(()=>{
     if(!placed){
       document.getElementById('scan-overlay').classList.remove('show');
-      showReticle();
+      retM.visible=true; retO.visible=true;
       document.getElementById('tap-hint').classList.add('show');
     }
   },3000);
 
   document.addEventListener('touchend',onTap,{passive:true});
   document.addEventListener('click',onTap);
-}
-
-function showReticle(){
-  retM.position.set(PLACE_POS.x, PLACE_POS.y+0.002, PLACE_POS.z);
-  retO.position.set(PLACE_POS.x, PLACE_POS.y, PLACE_POS.z);
-  retM.visible=true; retO.visible=true;
 }
 
 function onTap(e){
@@ -421,7 +456,8 @@ function onTap(e){
     if(raycaster.intersectObject(pH).length>0)goToSite();
     return;
   }
-  place(PLACE_POS.clone());
+  // Размещаем на текущей позиции прицела в мировом пространстве
+  place(retO.position.clone());
 }
 
 function place(pos){
@@ -449,7 +485,7 @@ function reposition(){
   setTimeout(()=>{
     if(!placed){
       document.getElementById('scan-overlay').classList.remove('show');
-      showReticle();
+      retM.visible=true; retO.visible=true;
       document.getElementById('tap-hint').classList.add('show');
     }
   },2500);
