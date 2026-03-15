@@ -194,7 +194,7 @@
     </svg>
     <div class="rdot"></div>
   </div>
-  <div class="scan-box"><b>Сканирование поверхности</b>Медленно водите камерой по полу или столу</div>
+  <div class="scan-box"><b>Поиск поверхности</b>Наведите камеру на пол или стол</div>
 </div>
 
 <div id="tap-hint">&#128070; Нажмите чтобы разместить сцену</div>
@@ -282,7 +282,10 @@ renderer.setSize(window.innerWidth,window.innerHeight);
 renderer.setClearColor(0x000000,0);
 
 const scene  = new THREE.Scene();
+// Имитируем высоту камеры как в реальности (~1.2м над полом)
+// Пол сцены = y=0, камера = y=1.2. Это фиксирует объекты на полу.
 const camera = new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.01,100);
+camera.position.set(0, 1.2, 0); // высота камеры над полом
 scene.add(new THREE.AmbientLight(0xffffff,0.6));
 const dL=new THREE.DirectionalLight(0xffffff,1.1); dL.position.set(2,6,3); scene.add(dL);
 
@@ -421,11 +424,19 @@ async function startAR(){
     requestAnimationFrame(loop);
     const n=performance.now(); ft+=(n-lt)/1000; lt=n;
     updateCameraFromDevice();
-    // Прицел всегда следует за камерой (camera-space → world-space)
+    // Прицел: луч из камеры в направлении нижнего-центра экрана → пересечение с полом y=0
     if(retM.visible){
-      const wp=LOCAL_RETICLE.clone().applyQuaternion(camera.quaternion);
-      retM.position.set(wp.x, wp.y+0.002, wp.z);
-      retO.position.set(wp.x, wp.y, wp.z);
+      const ld=LOCAL_RETICLE.clone().normalize();
+      const wd=ld.applyQuaternion(camera.quaternion);
+      if(wd.y < -0.05){
+        // t = расстояние до пола (y=0) вдоль луча
+        const t=Math.min(-camera.position.y / wd.y, 5); // макс 5м
+        if(t > 0.3){
+          retM.position.set(wd.x*t, 0.003, wd.z*t);
+          retO.position.set(wd.x*t, 0.001, wd.z*t);
+        }
+      }
+      // если смотрим не вниз — прицел остаётся на последней позиции
     }
     anim(ft);
     renderer.render(scene,camera);
