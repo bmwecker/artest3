@@ -343,6 +343,34 @@ let captureRenderTarget=null;
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
 
+// ── WEBXR AR ────────────
+let useWebXR=false, xrSession=null, xrHitTestSource=null, xrRefSpace=null;
+const xrHitMatrix=new THREE.Matrix4();
+
+async function tryStartWebXR(){
+  if(!navigator.xr) return false;
+  const ok=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
+  if(!ok) return false;
+  try{
+    xrSession=await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['hit-test'],
+      optionalFeatures:['dom-overlay'],
+      domOverlay:{root:document.body}
+    });
+    renderer.xr.enabled=true;
+    renderer.xr.setReferenceSpaceType('local');
+    await renderer.xr.setSession(xrSession);
+    xrRefSpace=await xrSession.requestReferenceSpace('local');
+    const vs=await xrSession.requestReferenceSpace('viewer');
+    xrHitTestSource=await xrSession.requestHitTestSource({space:vs});
+    xrSession.addEventListener('end',()=>{
+      xrSession=null; xrHitTestSource=null;
+      renderer.xr.enabled=false; useWebXR=false;
+    });
+    useWebXR=true; return true;
+  }catch(e){ console.warn('WebXR AR:',e); return false; }
+}
+
 // ── DEVICE ORIENTATION (гироскоп) ────────────
 // Вращаем Three.js камеру по данным гироскопа — объекты фиксируются в пространстве
 let devAlpha=0, devBeta=90, devGamma=0, orientReady=false;
@@ -399,58 +427,79 @@ function anim(t){
 
 // ── СТАРТ ────────────
 async function startAR(){
-  // iOS 13+: запрашиваем разрешение на гироскоп (должно быть внутри user gesture)
-  if(typeof DeviceOrientationEvent !== 'undefined' &&
-     typeof DeviceOrientationEvent.requestPermission === 'function'){
-    try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+  if(typeof DeviceOrientationEvent!=='undefined'&&
+     typeof DeviceOrientationEvent.requestPermission==='function'){
+    try{await DeviceOrientationEvent.requestPermission();}catch(e){}
   }
-  window.addEventListener('deviceorientation', onDeviceOrientation, true);
 
-  const video=document.getElementById('bg-video');
-  try{
-    let s;
-    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
-    catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
-    video.srcObject=s; await video.play(); video.style.display='block';
-  }catch(err){
-    document.getElementById('start-screen').classList.remove('hidden');
-    alert('Не удалось открыть камеру.\n'+err.message); return;
+  // Пробуем WebXR AR (Android Chrome + ARCore) — реальное определение плоскостей
+  const webxrOk=await tryStartWebXR();
+
+  if(!webxrOk){
+    // Откат: гироскоп + видео с камеры
+    window.addEventListener('deviceorientation',onDeviceOrientation,true);
+    const video=document.getElementById('bg-video');
+    try{
+      let s;
+      try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
+      catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+      video.srcObject=s; await video.play(); video.style.display='block';
+    }catch(err){
+      document.getElementById('start-screen').classList.remove('hidden');
+      alert('Не удалось открыть камеру.\n'+err.message); return;
+    }
   }
+
   document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('scan-overlay').classList.add('show');
 
-  // Рендер-цикл
+  // Единый рендер-цикл: работает и в WebXR, и в обычном режиме
   let ft=0,lt=performance.now();
-  (function loop(){
-    requestAnimationFrame(loop);
-    const n=performance.now(); ft+=(n-lt)/1000; lt=n;
-    updateCameraFromDevice();
-    // Прицел: луч из камеры в направлении нижнего-центра экрана → пересечение с полом y=0
-    if(retM.visible){
-      const ld=LOCAL_RETICLE.clone().normalize();
-      const wd=ld.applyQuaternion(camera.quaternion);
-      if(wd.y < -0.05){
-        // t = расстояние до пола (y=0) вдоль луча
-        const t=Math.min(-camera.position.y / wd.y, 5); // макс 5м
-        if(t > 0.3){
-          retM.position.set(wd.x*t, 0.003, wd.z*t);
-          retO.position.set(wd.x*t, 0.001, wd.z*t);
+  renderer.setAnimationLoop((timestamp,frame)=>{
+    const n=timestamp||performance.now(); ft+=(n-lt)/1000; lt=n;
+
+    if(useWebXR&&frame&&xrHitTestSource&&!placed){
+      // WebXR hit-testing: реальное пересечение с плоскостью
+      const results=frame.getHitTestResults(xrHitTestSource);
+      if(results.length>0){
+        const pose=results[0].getPose(xrRefSpace);
+        if(pose){
+          xrHitMatrix.fromArray(pose.transform.matrix);
+          const px=xrHitMatrix.elements[12],py=xrHitMatrix.elements[13],pz=xrHitMatrix.elements[14];
+          retM.position.set(px,py+0.003,pz);
+          retO.position.set(px,py+0.001,pz);
+          if(!retM.visible){
+            retM.visible=true; retO.visible=true;
+            document.getElementById('scan-overlay').classList.remove('show');
+            document.getElementById('tap-hint').classList.add('show');
+          }
         }
       }
-      // если смотрим не вниз — прицел остаётся на последней позиции
+    }else if(!useWebXR){
+      updateCameraFromDevice();
+      if(retM.visible){
+        const ld=LOCAL_RETICLE.clone().normalize();
+        const wd=ld.applyQuaternion(camera.quaternion);
+        if(wd.y<-0.05){
+          const t=Math.min(-camera.position.y/wd.y,5);
+          if(t>0.3){retM.position.set(wd.x*t,0.003,wd.z*t);retO.position.set(wd.x*t,0.001,wd.z*t);}
+        }
+      }
     }
     anim(ft);
     renderer.render(scene,camera);
-  })();
+  });
 
-  // Фаза «сканирования» (3 сек) → прицел → ждать тап
-  document.getElementById('scan-overlay').classList.add('show');
-  setTimeout(()=>{
-    if(!placed){
-      document.getElementById('scan-overlay').classList.remove('show');
-      retM.visible=true; retO.visible=true;
-      document.getElementById('tap-hint').classList.add('show');
-    }
-  },3000);
+  // В обычном режиме — показать прицел через 3 сек
+  if(!webxrOk){
+    setTimeout(()=>{
+      if(!placed){
+        document.getElementById('scan-overlay').classList.remove('show');
+        retM.visible=true; retO.visible=true;
+        document.getElementById('tap-hint').classList.add('show');
+      }
+    },3000);
+  }
 
   document.addEventListener('touchend',onTap,{passive:true});
   document.addEventListener('click',onTap);
