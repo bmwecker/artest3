@@ -432,7 +432,8 @@ async function startAR(){
   }
 
   // Пробуем WebXR AR (Android Chrome + ARCore) — реальное определение плоскостей
-  const webxrOk=await tryStartWebXR();
+  // Временно отключено, так как WebXR API блокирует доступ к фону камеры для создания скриншотов из JS.
+  const webxrOk = false; // await tryStartWebXR();
 
   if(!webxrOk){
     // Откат: гироскоп + видео с камеры
@@ -579,12 +580,37 @@ function doCapture(){
       ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
     }
 
-    // Слой 2: 3D canvas (синхронный захват сразу после рендера без preserveDrawingBuffer)
-    if (!useWebXR) {
-      renderer.setClearColor(0x000000, 0);
-      renderer.render(scene, camera);
+    // Слой 2: 3D-сцена через offscreen render target.
+    // Используем размер 1x (вместо dpr), чтобы избежать креша readPixels на мобильных
+    const tw = window.innerWidth, th = window.innerHeight;
+    const captureRenderTarget = new THREE.WebGLRenderTarget(tw, th);
+    const savedAspect = camera.aspect;
+    camera.aspect = tw/th; camera.updateProjectionMatrix();
+
+    renderer.setRenderTarget(captureRenderTarget);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(0x000000, 0);
+
+    camera.aspect = savedAspect; camera.updateProjectionMatrix();
+
+    const px = new Uint8Array(tw * th * 4);
+    renderer.readRenderTargetPixels(captureRenderTarget, 0, 0, tw, th, px);
+    captureRenderTarget.dispose();
+
+    const tmp = document.createElement('canvas'); tmp.width = tw; tmp.height = th;
+    const tctx = tmp.getContext('2d');
+    const id2 = tctx.createImageData(tw, th);
+    for(let y=0; y<th; y++){
+      const src = (th - 1 - y) * tw * 4;
+      id2.data.set(px.subarray(src, src + tw * 4), y * tw * 4);
     }
-    ctx.drawImage(canvas, 0, 0, sw, sh);
+    tctx.putImageData(id2, 0, 0);
+
+    // Отрисовка 3D поверх видео
+    ctx.drawImage(tmp, 0, 0, sw, sh);
 
     captured=comp.toDataURL('image/jpeg',0.93);
   }catch(e){ console.warn('Photo capture failed:',e); captured=null; }
