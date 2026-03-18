@@ -276,7 +276,7 @@ if(isIOS){
 
 // ── THREE.JS ──────────────────────────
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true, preserveDrawingBuffer: true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
 renderer.setClearColor(0x000000,0);
@@ -339,7 +339,6 @@ retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 const LOCAL_RETICLE = new THREE.Vector3(0, -0.4, -1.5);
 
 let placed=false, musicOn=false, captured=null;
-let captureRenderTarget=null;
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
 
@@ -574,41 +573,18 @@ function doCapture(){
 
     // Слой 1: кадр с камеры
     const vid=document.getElementById('bg-video');
-    if(vid && vid.readyState>=2 && vid.videoWidth>0){
+    if(vid && vid.readyState>=2 && vid.videoWidth>0 && vid.style.display!=='none'){
       const vw=vid.videoWidth, vh=vid.videoHeight;
       const scale=Math.max(sw/vw, sh/vh);
       ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
     }
 
-    // Слой 2: 3D-сцена через offscreen render target
-    if(!captureRenderTarget||captureRenderTarget.width!==sw||captureRenderTarget.height!==sh){
-      if(captureRenderTarget) captureRenderTarget.dispose();
-      captureRenderTarget=new THREE.WebGLRenderTarget(sw,sh);
+    // Слой 2: 3D canvas (сохраняется благодаря preserveDrawingBuffer: true)
+    if (!useWebXR) {
+      renderer.setClearColor(0x000000, 0);
+      renderer.render(scene, camera);
     }
-    const savedAspect=camera.aspect;
-    camera.aspect=sw/sh; camera.updateProjectionMatrix();
-
-    renderer.setRenderTarget(captureRenderTarget);
-    renderer.setClearColor(0x000000,0);
-    renderer.clear();
-    renderer.render(scene,camera);
-    renderer.setRenderTarget(null);
-    renderer.setClearColor(0x000000,0);
-
-    camera.aspect=savedAspect; camera.updateProjectionMatrix();
-
-    // Читаем пиксели 3D, переворачиваем Y, накладываем поверх камеры
-    const px=new Uint8Array(sw*sh*4);
-    renderer.readRenderTargetPixels(captureRenderTarget,0,0,sw,sh,px);
-    const tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
-    const tctx=tmp.getContext('2d');
-    const id2=tctx.createImageData(sw,sh);
-    for(let y=0;y<sh;y++){
-      const src=(sh-1-y)*sw*4;
-      id2.data.set(px.subarray(src,src+sw*4),y*sw*4);
-    }
-    tctx.putImageData(id2,0,0);
-    ctx.drawImage(tmp,0,0);
+    ctx.drawImage(canvas, 0, 0, sw, sh);
 
     captured=comp.toDataURL('image/jpeg',0.93);
   }catch(e){ console.warn('Photo capture failed:',e); captured=null; }
