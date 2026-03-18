@@ -276,7 +276,7 @@ if(isIOS){
 
 // ── THREE.JS ──────────────────────────
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true, preserveDrawingBuffer: true});
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
 renderer.setClearColor(0x000000,0);
@@ -579,7 +579,7 @@ function doCapture(){
       ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
     }
 
-    // Слой 2: 3D canvas (сохраняется благодаря preserveDrawingBuffer: true)
+    // Слой 2: 3D canvas (синхронный захват сразу после рендера без preserveDrawingBuffer)
     if (!useWebXR) {
       renderer.setClearColor(0x000000, 0);
       renderer.render(scene, camera);
