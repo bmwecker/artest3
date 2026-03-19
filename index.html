@@ -353,12 +353,19 @@ async function tryStartWebXR(){
   try{
     xrSession=await navigator.xr.requestSession('immersive-ar',{
       requiredFeatures:['hit-test'],
-      optionalFeatures:['dom-overlay'],
+      optionalFeatures:['dom-overlay', 'camera-access'],
       domOverlay:{root:document.body}
     });
     renderer.xr.enabled=true;
     renderer.xr.setReferenceSpaceType('local');
     await renderer.xr.setSession(xrSession);
+    
+    try {
+      const gl = renderer.getContext();
+      await gl.makeXRCompatible();
+      window.glBinding = new XRWebGLBinding(xrSession, gl);
+    } catch(e) { console.warn('camera-access failed'); }
+
     xrRefSpace=await xrSession.requestReferenceSpace('local');
     const vs=await xrSession.requestReferenceSpace('viewer');
     xrHitTestSource=await xrSession.requestHitTestSource({space:vs});
@@ -432,36 +439,26 @@ async function startAR(){
   }
 
   const webxrOk = await tryStartWebXR();
-
   const video=document.getElementById('bg-video');
-  let streamOk = false;
-  try{
-    // ОШИБКА БЫЛА ЗДЕСЬ: запуск камеры ДО WebXR на некоторых девайсах вешал ARCore черным экраном.
-    // ИСПРАВЛЕНИЕ: запускаем WebXR первым. Затем запрашиваем getUserMedia строго на 'environment' камеру.
-    // Современный Chrome (88+) умеет отдавать копию потока от ARCore в MediaTracks.
-    const s = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-      audio: false
-    });
-    video.srcObject=s; 
-    await video.play(); 
-    streamOk = true;
-  }catch(err){
-    console.warn('Camera fallback error:', err);
-  }
-
-  if(!webxrOk && !streamOk){
-    document.getElementById('start-screen').classList.remove('hidden');
-    alert('Не удалось открыть камеру.'); return;
-  }
 
   if(webxrOk){
-    video.style.opacity = '0';
-    video.style.display = 'block';
+    video.style.display = 'none'; // WebXR рендерит камеру сам, HTML видео не нужно
   } else {
+    // Включаем фолбэк
     window.addEventListener('deviceorientation',onDeviceOrientation,true);
     video.style.opacity = '1';
     video.style.display = 'block';
+    
+    // Запускаем getUserMedia ТОЛЬКО если WebXR не поддерживается
+    try{
+      let s;
+      try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});}
+      catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+      video.srcObject=s; await video.play(); 
+    }catch(err){
+      document.getElementById('start-screen').classList.remove('hidden');
+      alert('Не удалось открыть камеру.\n'+err.message); return;
+    }
   }
 
   document.getElementById('start-screen').classList.add('hidden');
@@ -502,9 +499,9 @@ async function startAR(){
     }
     anim(ft);
     renderer.render(scene,camera);
-    if(useWebXR && needsCapture) {
+    if(useWebXR && needsCapture && frame) {
       needsCapture = false;
-      doCaptureWebXR(); // Скриншот для WebXR с фоновым видео
+      doCaptureWebXR(frame); // Скриншот для WebXR с фоновым видео через camera-access
     }
   });
 
@@ -587,10 +584,57 @@ function takePhoto(){
   }
 }
 
-function doCaptureWebXR() {
+function doCaptureWebXR(frame) {
   const dpr=Math.min(window.devicePixelRatio||1,2);
   const sw=Math.round(window.innerWidth*dpr);
   const sh=Math.round(window.innerHeight*dpr);
+
+  let bgCanvas = null;
+  if(frame && window.glBinding) {
+    const viewerPose = frame.getViewerPose(xrRefSpace);
+    if(viewerPose && viewerPose.views.length > 0) {
+      const xrCam = viewerPose.views[0].camera;
+      if(xrCam) {
+        try {
+          const camTex = window.glBinding.getCameraImage(xrCam);
+          const cw = xrCam.width;
+          const ch = xrCam.height;
+          const gl = renderer.getContext();
+          const fb = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, camTex, 0);
+          const pixels = new Uint8Array(cw * ch * 4);
+          gl.readPixels(0, 0, cw, ch, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.deleteFramebuffer(fb);
+
+          const rawData = new ImageData(new Uint8ClampedArray(pixels.buffer), cw, ch);
+          const rawC = document.createElement('canvas');
+          rawC.width = cw; rawC.height = ch;
+          rawC.getContext('2d').putImageData(rawData, 0, 0);
+
+          bgCanvas = document.createElement('canvas');
+          bgCanvas.width = sw; bgCanvas.height = sh;
+          const bgCtx = bgCanvas.getContext('2d');
+          bgCtx.save();
+          bgCtx.translate(sw/2, sh/2);
+          if(sw < sh && cw > ch) { 
+            bgCtx.rotate(Math.PI/2); 
+            bgCtx.scale(1, -1);
+            const scale = Math.max(sh/cw, sw/ch);
+            bgCtx.scale(scale, scale);
+            bgCtx.drawImage(rawC, -cw/2, -ch/2);
+          } else {
+            bgCtx.scale(1, -1);
+            const scale = Math.max(sw/cw, sh/ch);
+            bgCtx.scale(scale, scale);
+            bgCtx.drawImage(rawC, -cw/2, -ch/2);
+          }
+          bgCtx.restore();
+        } catch(e) { console.warn("XR Camera Access failed", e); }
+      }
+    }
+  }
 
   const rt = new THREE.WebGLRenderTarget(sw, sh);
   renderer.xr.enabled = false;
@@ -607,13 +651,18 @@ function doCaptureWebXR() {
   const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
   const ctx=comp.getContext('2d');
 
-  const vid=document.getElementById('bg-video');
-  if(vid && vid.readyState>=2 && vid.videoWidth>0){
-    const vw=vid.videoWidth, vh=vid.videoHeight;
-    const scale=Math.max(sw/vw, sh/vh);
-    ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
+  if(bgCanvas) {
+    ctx.drawImage(bgCanvas, 0, 0);
   } else {
-    ctx.fillStyle='#000'; ctx.fillRect(0,0,sw,sh);
+    // На случай экзотического устройства
+    const vid=document.getElementById('bg-video');
+    if(vid && vid.readyState>=2 && vid.videoWidth>0){
+      const vw=vid.videoWidth, vh=vid.videoHeight;
+      const sx=Math.max(sw/vw, sh/vh);
+      ctx.drawImage(vid,(sw-vw*sx)/2,(sh-vh*sx)/2,vw*sx,vh*sx);
+    } else {
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,sw,sh);
+    }
   }
 
   const imgData = new ImageData(new Uint8ClampedArray(buffer.buffer), sw, sh);
