@@ -431,11 +431,14 @@ async function startAR(){
     try{await DeviceOrientationEvent.requestPermission();}catch(e){}
   }
 
+  const webxrOk = await tryStartWebXR();
+
   const video=document.getElementById('bg-video');
   let streamOk = false;
   try{
-    // Запускаем поток ДО WebXR, чтобы ARCore не заблокировал заднюю камеру.
-    // Убираем жесткие лимиты разрешений, чтобы камеры корректно шарились.
+    // ОШИБКА БЫЛА ЗДЕСЬ: запуск камеры ДО WebXR на некоторых девайсах вешал ARCore черным экраном.
+    // ИСПРАВЛЕНИЕ: запускаем WebXR первым. Затем запрашиваем getUserMedia строго на 'environment' камеру.
+    // Современный Chrome (88+) умеет отдавать копию потока от ARCore в MediaTracks.
     const s = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
       audio: false
@@ -446,8 +449,6 @@ async function startAR(){
   }catch(err){
     console.warn('Camera fallback error:', err);
   }
-
-  const webxrOk = await tryStartWebXR();
 
   if(!webxrOk && !streamOk){
     document.getElementById('start-screen').classList.remove('hidden');
