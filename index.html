@@ -338,7 +338,7 @@ retO.rotation.x=-Math.PI/2; retO.visible=false; scene.add(retO);
 // Позиция прицела в camera-space (чуть ниже центра, перед камерой)
 const LOCAL_RETICLE = new THREE.Vector3(0, -0.4, -1.5);
 
-let placed=false, musicOn=false, captured=null;
+let placed=false, musicOn=false, captured=null, needsCapture=false;
 const audio=new Audio('music.mp3'); audio.loop=true;
 const raycaster=new THREE.Raycaster(), ptr=new THREE.Vector2();
 
@@ -431,23 +431,28 @@ async function startAR(){
     try{await DeviceOrientationEvent.requestPermission();}catch(e){}
   }
 
-  // Пробуем WebXR AR (Android Chrome + ARCore) — реальное определение плоскостей
-  // Временно отключено, так как WebXR API блокирует доступ к фону камеры для создания скриншотов из JS.
-  const webxrOk = false; // await tryStartWebXR();
+  const webxrOk = await tryStartWebXR();
 
-  if(!webxrOk){
-    // Откат: гироскоп + видео с камеры
-    window.addEventListener('deviceorientation',onDeviceOrientation,true);
-    const video=document.getElementById('bg-video');
-    try{
-      let s;
-      try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
-      catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
-      video.srcObject=s; await video.play(); video.style.display='block';
-    }catch(err){
+  // Всегда запускаем фоновое видео для создания качественных скриншотов с подложкой камеры
+  const video=document.getElementById('bg-video');
+  let streamOk = false;
+  try{
+    let s;
+    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
+    catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+    video.srcObject=s; await video.play(); 
+    video.style.opacity = webxrOk ? '0' : '1';
+    video.style.display = 'block';
+    streamOk = true;
+  }catch(err){
+    if(!webxrOk){
       document.getElementById('start-screen').classList.remove('hidden');
       alert('Не удалось открыть камеру.\n'+err.message); return;
     }
+  }
+
+  if(!webxrOk){
+    window.addEventListener('deviceorientation',onDeviceOrientation,true);
   }
 
   document.getElementById('start-screen').classList.add('hidden');
@@ -488,6 +493,10 @@ async function startAR(){
     }
     anim(ft);
     renderer.render(scene,camera);
+    if(useWebXR && needsCapture) {
+      needsCapture = false;
+      doCaptureWebXR(); // Скриншот для WebXR с фоновым видео
+    }
   });
 
   // В обычном режиме — показать прицел через 3 сек
@@ -561,7 +570,59 @@ function goToSite(){window.open(CFG.siteUrl,'_blank');}
 function takePhoto(){
   if(!placed)return;
   const fl=document.getElementById('flash');fl.classList.add('on');setTimeout(()=>fl.classList.remove('on'),120);
-  setTimeout(()=>{ doCapture(); },150);
+  
+  if(useWebXR) {
+    needsCapture = true; // wait for next WebXR rendering frame to extract 3D
+  } else {
+    setTimeout(()=>{ doCapture(); },150);
+  }
+}
+
+function doCaptureWebXR() {
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const sw=Math.round(window.innerWidth*dpr);
+  const sh=Math.round(window.innerHeight*dpr);
+
+  const rt = new THREE.WebGLRenderTarget(sw, sh);
+  renderer.xr.enabled = false;
+  renderer.setClearColor(0x000000, 0);
+  renderer.setRenderTarget(rt);
+  renderer.clear();
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  renderer.xr.enabled = true;
+
+  const buffer = new Uint8Array(sw * sh * 4);
+  renderer.readRenderTargetPixels(rt, 0, 0, sw, sh, buffer);
+
+  const comp=document.createElement('canvas'); comp.width=sw; comp.height=sh;
+  const ctx=comp.getContext('2d');
+
+  const vid=document.getElementById('bg-video');
+  if(vid && vid.readyState>=2 && vid.videoWidth>0){
+    const vw=vid.videoWidth, vh=vid.videoHeight;
+    const scale=Math.max(sw/vw, sh/vh);
+    ctx.drawImage(vid,(sw-vw*scale)/2,(sh-vh*scale)/2,vw*scale,vh*scale);
+  } else {
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,sw,sh);
+  }
+
+  const imgData = new ImageData(new Uint8ClampedArray(buffer.buffer), sw, sh);
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = sw; tempCanvas.height = sh;
+  tempCanvas.getContext('2d').putImageData(imgData, 0, 0);
+
+  ctx.save();
+  ctx.scale(1, -1);
+  ctx.drawImage(tempCanvas, 0, -sh);
+  ctx.restore();
+
+  try { captured = comp.toDataURL('image/jpeg',0.93); } catch(e) { captured = null; }
+
+  const prev=document.getElementById('s-preview');
+  if(captured){ prev.src=captured; prev.style.display='block'; }
+  else { prev.style.display='none'; }
+  openShare();
 }
 
 function doCapture(){
