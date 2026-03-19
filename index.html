@@ -431,28 +431,36 @@ async function startAR(){
     try{await DeviceOrientationEvent.requestPermission();}catch(e){}
   }
 
-  const webxrOk = await tryStartWebXR();
-
-  // Всегда запускаем фоновое видео для создания качественных скриншотов с подложкой камеры
   const video=document.getElementById('bg-video');
   let streamOk = false;
   try{
-    let s;
-    try{s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});}
-    catch(e){s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
-    video.srcObject=s; await video.play(); 
-    video.style.opacity = webxrOk ? '0' : '1';
-    video.style.display = 'block';
+    // Запускаем поток ДО WebXR, чтобы ARCore не заблокировал заднюю камеру.
+    // Убираем жесткие лимиты разрешений, чтобы камеры корректно шарились.
+    const s = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false
+    });
+    video.srcObject=s; 
+    await video.play(); 
     streamOk = true;
   }catch(err){
-    if(!webxrOk){
-      document.getElementById('start-screen').classList.remove('hidden');
-      alert('Не удалось открыть камеру.\n'+err.message); return;
-    }
+    console.warn('Camera fallback error:', err);
   }
 
-  if(!webxrOk){
+  const webxrOk = await tryStartWebXR();
+
+  if(!webxrOk && !streamOk){
+    document.getElementById('start-screen').classList.remove('hidden');
+    alert('Не удалось открыть камеру.'); return;
+  }
+
+  if(webxrOk){
+    video.style.opacity = '0';
+    video.style.display = 'block';
+  } else {
     window.addEventListener('deviceorientation',onDeviceOrientation,true);
+    video.style.opacity = '1';
+    video.style.display = 'block';
   }
 
   document.getElementById('start-screen').classList.add('hidden');
