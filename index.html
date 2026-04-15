@@ -305,8 +305,8 @@ gltfLoader.load('mesh.glb', (gltf) => {
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
   
-  // Нормализуем масштаб модели так, чтобы она была около 0.6 метров
-  const scale = 0.6 / maxDim;
+  // Нормализуем масштаб модели так, чтобы она была около 1.2 метров
+  const scale = 1.2 / maxDim;
   loadedModel.scale.setScalar(scale);
   
   loadedModel.position.x = -center.x * scale;
@@ -413,7 +413,6 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function anim(t){
-  if(loadedModel) loadedModel.rotation.y = t * 0.5; // Медленное вращение модели
   // Пульсация прицела
   if(retM.visible) retO.scale.setScalar(1+Math.sin(t*3)*0.15);
 }
