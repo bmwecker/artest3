@@ -11,6 +11,23 @@
     #bg-video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; display:none; }
     #c { position:fixed; inset:0; width:100%; height:100%; display:block; z-index:1; }
 
+    
+    /* ── ВЫБОР ЯЗЫКА ── */
+    #lang-screen {
+      position:fixed; inset:0; z-index:900;
+      background:linear-gradient(160deg,#0d0d1a,#1a0a2e);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+      transition:opacity .5s;
+    }
+    #lang-screen.hidden { opacity:0; pointer-events:none; }
+    .lang-btn {
+      width: 220px; padding: 16px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: #fff; font-size: 18px; font-weight: 500; cursor: pointer; text-align: center;
+      transition: all 0.2s;
+    }
+    .lang-btn:active { transform:scale(0.96); background: rgba(255,255,255,0.1); }
+    .lang-alef { width: 140px; margin-bottom: 24px; }
+
     /* ── СТАРТОВЫЙ ЭКРАН ── */
     #start-screen {
       position:fixed; inset:0; z-index:200;
@@ -143,41 +160,50 @@
 <video id="bg-video" autoplay playsinline muted></video>
 <canvas id="c"></canvas>
 
+
+<!-- ВЫБОР ЯЗЫКА -->
+<div id="lang-screen">
+  <img class="lang-alef" src="https://static.tildacdn.com/tild3838-3063-4835-b738-616637313364/alefAB.png" alt="Alef-Bet">
+  <div class="lang-btn" onclick="setLanguage('he')">עברית</div>
+  <div class="lang-btn" onclick="setLanguage('en')">English</div>
+  <div class="lang-btn" onclick="setLanguage('ru')">Русский</div>
+</div>
+
 <!-- ANDROID СТАРТ -->
-<div id="start-screen">
+<div id="start-screen" class="hidden">
   <div class="logo">AR<span>.</span></div>
   <div class="logo-sub">Experience</div>
-  <button id="start-btn" onclick="startAR()">&#9654; Запустить AR</button>
-  <div class="start-note">Разрешите доступ к камере когда браузер спросит</div>
+  <button id="start-btn" onclick="startAR()"><span data-i18n="startBtn">&#9654; Запустить AR</span></button>
+  <div class="start-note" data-i18n="startNote">Разрешите доступ к камере когда браузер спросит</div>
 </div>
 
 <!-- iOS ЭКРАН -->
 <div id="ios-screen">
   <div class="ios-badge">&#10024;</div>
-  <div class="ios-title">AR Experience</div>
-  <div class="ios-sub">Запустите дополненную реальность — объект появится прямо в вашей комнате</div>
+  <div class="ios-title" data-i18n="iosTitle">AR Experience</div>
+  <div class="ios-sub" data-i18n="iosSub">Запустите дополненную реальность — объект появится прямо в вашей комнате</div>
 
   <a class="ios-ar-btn" href="model.usdz" rel="ar">
     <span>&#128241;</span>
-    <span>Открыть в AR</span>
+    <span data-i18n="iosArBtn">Открыть в AR</span>
   </a>
 
   <div class="ios-features">
     <div class="ios-feat">
       <div class="ios-feat-icon">&#127919;</div>
-      <div class="ios-feat-text"><b>Точное позиционирование</b>Объект фиксируется на реальной поверхности</div>
+      <div class="ios-feat-text"><b data-i18n="iosFeat1Title">Точное позиционирование</b><span data-i18n="iosFeat1Desc">Объект фиксируется на реальной поверхности</span></div>
     </div>
     <div class="ios-feat">
       <div class="ios-feat-icon">&#128208;</div>
-      <div class="ios-feat-text"><b>Масштаб и поворот</b>Двумя пальцами можно изменить размер и угол</div>
+      <div class="ios-feat-text"><b data-i18n="iosFeat2Title">Масштаб и поворот</b><span data-i18n="iosFeat2Desc">Двумя пальцами можно изменить размер и угол</span></div>
     </div>
     <div class="ios-feat">
       <div class="ios-feat-icon">&#128248;</div>
-      <div class="ios-feat-text"><b>Фото из AR</b>Кнопка камеры прямо в просмотрщике Apple</div>
+      <div class="ios-feat-text"><b data-i18n="iosFeat3Title">Фото из AR</b><span data-i18n="iosFeat3Desc">Кнопка камеры прямо в просмотрщике Apple</span></div>
     </div>
   </div>
 
-  <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank">&#127760; Перейти на сайт</a>
+  <a class="ios-site-btn" href="https://alef-bet.tech/" target="_blank"><span data-i18n="iosGoToSite">&#127760; Перейти на сайт</span></a>
 </div>
 
 <!-- AR UI -->
@@ -194,17 +220,17 @@
     </svg>
     <div class="rdot"></div>
   </div>
-  <div class="scan-box"><b>Поиск поверхности</b>Наведите камеру на пол или стол</div>
+  <div class="scan-box"><b data-i18n="scanTitle">Поиск поверхности</b><span data-i18n="scanDesc">Наведите камеру на пол или стол</span></div>
 </div>
 
-<div id="tap-hint">&#128070; Нажмите чтобы разместить сцену</div>
-<div id="tooltip">&#127760; Нажмите на портал чтобы открыть сайт</div>
+<div id="tap-hint"><span data-i18n="tapHint">&#128070; Нажмите чтобы разместить сцену</span></div>
+<div id="tooltip"><span data-i18n="tooltip">&#127760; Нажмите на портал чтобы открыть сайт</span></div>
 <div id="flash"></div>
 
 <div id="ui-bar">
   <div class="ui-btn" id="music-btn" onclick="toggleMusic()">
     <div class="pill"><div class="bars paused" id="bars"><span></span><span></span><span></span><span></span><span></span></div></div>
-    <span class="lbl">Музыка</span>
+    <span class="lbl" data-i18n="uiMusic">Музыка</span>
   </div>
   <div class="ui-btn" onclick="takePhoto()">
     <div class="shutter">
@@ -212,7 +238,7 @@
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
       </svg>
     </div>
-    <span class="lbl">Фото</span>
+    <span class="lbl" data-i18n="uiPhoto">Фото</span>
   </div>
   <div class="ui-btn" onclick="reposition()">
     <div class="pill">
@@ -222,7 +248,7 @@
         <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
       </svg>
     </div>
-    <span class="lbl">Переместить</span>
+    <span class="lbl" data-i18n="uiMove">Переместить</span>
   </div>
   <div class="ui-btn" onclick="goToSite()">
     <div class="pill">
@@ -231,7 +257,7 @@
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
     </div>
-    <span class="lbl">Сайт</span>
+    <span class="lbl" data-i18n="uiSite">Сайт</span>
   </div>
 </div>
 
@@ -239,8 +265,8 @@
 <div id="share-sheet">
   <div class="s-handle"></div>
   <img id="s-preview" src="" alt="">
-  <div class="s-title">Поделиться фото</div>
-  <div class="s-sub">Выберите приложение</div>
+  <div class="s-title" data-i18n="shareTitle">Поделиться фото</div>
+  <div class="s-sub" data-i18n="shareSub">Выберите приложение</div>
   <div class="s-grid">
     <div class="sapp" onclick="shareTo('instagram')"><div class="sapp-ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)">&#128248;</div><span class="sapp-lb">Instagram</span></div>
     <div class="sapp" onclick="shareTo('telegram')"><div class="sapp-ic" style="background:#229ED9">&#9992;&#65039;</div><span class="sapp-lb">Telegram</span></div>
@@ -249,10 +275,10 @@
     <div class="sapp" onclick="shareTo('x')"><div class="sapp-ic" style="background:#000">&#10006;&#65039;</div><span class="sapp-lb">X</span></div>
     <div class="sapp" onclick="shareTo('facebook')"><div class="sapp-ic" style="background:#1877F2">&#128216;</div><span class="sapp-lb">Facebook</span></div>
     <div class="sapp" onclick="shareTo('tiktok')"><div class="sapp-ic" style="background:linear-gradient(135deg,#010101,#69C9D0)">&#127925;</div><span class="sapp-lb">TikTok</span></div>
-    <div class="sapp" onclick="shareTo('native')"><div class="sapp-ic" style="background:rgba(255,255,255,.1)">&#128228;</div><span class="sapp-lb">Ещё...</span></div>
+    <div class="sapp" onclick="shareTo('native')"><div class="sapp-ic" style="background:rgba(255,255,255,.1)">&#128228;</div><span class="sapp-lb" data-i18n="shareMore">Ещё...</span></div>
   </div>
-  <button class="s-save" onclick="savePhoto()">&#11015;&#65039; Сохранить в галерею</button>
-  <button class="s-close" onclick="closeShare()">Закрыть</button>
+  <button class="s-save" onclick="savePhoto()"><span data-i18n="shareSave">&#11015;&#65039; Сохранить в галерею</span></button>
+  <button class="s-close" onclick="closeShare()"><span data-i18n="shareClose">Закрыть</span></button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -266,14 +292,131 @@ const CFG = {
 };
 
 // ── ОПРЕДЕЛЕНИЕ ПЛАТФОРМЫ ─────────────
+
+const i18n = {
+  ru: {
+    startBtn: "▶ Запустить AR",
+    startNote: "Разрешите доступ к камере когда браузер спросит",
+    iosTitle: "AR Experience",
+    iosSub: "Запустите дополненную реальность — объект появится прямо в вашей комнате",
+    iosArBtn: "Открыть в AR",
+    iosFeat1Title: "Точное позиционирование",
+    iosFeat1Desc: "Объект фиксируется на реальной поверхности",
+    iosFeat2Title: "Масштаб и поворот",
+    iosFeat2Desc: "Двумя пальцами можно изменить размер и угол",
+    iosFeat3Title: "Фото из AR",
+    iosFeat3Desc: "Кнопка камеры прямо в просмотрщике Apple",
+    iosGoToSite: "🌐 Перейти на сайт",
+    scanTitle: "Поиск поверхности",
+    scanDesc: "Наведите камеру на пол или стол",
+    tapHint: "👆 Нажмите чтобы разместить сцену",
+    tooltip: "🌐 Нажмите на портал чтобы открыть сайт",
+    uiMusic: "Музыка",
+    uiPhoto: "Фото",
+    uiMove: "Переместить",
+    uiSite: "Сайт",
+    shareTitle: "Поделиться фото",
+    shareSub: "Выберите приложение",
+    shareMore: "Ещё...",
+    shareSave: "⬇️ Сохранить в галерею",
+    shareClose: "Закрыть",
+    errCamera: "Не удалось открыть камеру.",
+    cfgShareText: "Посмотри этот AR-опыт!"
+  },
+  en: {
+    startBtn: "▶ Start AR",
+    startNote: "Allow camera access when prompted by the browser",
+    iosTitle: "AR Experience",
+    iosSub: "Launch Augmented Reality — the object will appear right in your room",
+    iosArBtn: "Open in AR",
+    iosFeat1Title: "Accurate Positioning",
+    iosFeat1Desc: "The object is anchored to a real surface",
+    iosFeat2Title: "Scale and Rotate",
+    iosFeat2Desc: "Use two fingers to resize and adjust the angle",
+    iosFeat3Title: "AR Photography",
+    iosFeat3Desc: "Camera button right inside Apple's viewer",
+    iosGoToSite: "🌐 Go to Website",
+    scanTitle: "Scanning Surface",
+    scanDesc: "Point the camera at the floor or a table",
+    tapHint: "👆 Tap to place the scene",
+    tooltip: "🌐 Tap the portal to open the website",
+    uiMusic: "Music",
+    uiPhoto: "Photo",
+    uiMove: "Move",
+    uiSite: "Website",
+    shareTitle: "Share Photo",
+    shareSub: "Select an app",
+    shareMore: "More...",
+    shareSave: "⬇️ Save to Gallery",
+    shareClose: "Close",
+    errCamera: "Could not access the camera.",
+    cfgShareText: "Check out this AR experience!"
+  },
+  he: {
+    startBtn: "▶ התחל AR",
+    startNote: "אשר גישה למצלמה כשהדפדפן יבקש",
+    iosTitle: "חווית AR",
+    iosSub: "הפעל מציאות רבודה - האובייקט יופיע בחדר שלך",
+    iosArBtn: "פתח ב-AR",
+    iosFeat1Title: "מיקום מדויק",
+    iosFeat1Desc: "האובייקט מקובע למשטח אמיתי",
+    iosFeat2Title: "שינוי גודל וסיבוב",
+    iosFeat2Desc: "השתמש בשתי אצבעות לשינוי גודל וזווית",
+    iosFeat3Title: "צילום מ-AR",
+    iosFeat3Desc: "כפתור מצלמה ישירות בתוך הצופה של Apple",
+    iosGoToSite: "🌐 מעבר לאתר",
+    scanTitle: "מחפש משטח",
+    scanDesc: "כוון את המצלמה לרצפה או לשולחן",
+    tapHint: "👆 לחץ כדי למקם את הסצנה",
+    tooltip: "🌐 לחץ על הפורטל כדי לפתוח את האתר",
+    uiMusic: "מוזיקה",
+    uiPhoto: "צילום",
+    uiMove: "הזז",
+    uiSite: "אתר",
+    shareTitle: "שתף תמונה",
+    shareSub: "בחר אפליקציה",
+    shareMore: "עוד...",
+    shareSave: "⬇️ שמור בגלריה",
+    shareClose: "סגור",
+    errCamera: "לא פתח מצלמה.",
+    cfgShareText: "תראה את חווית ה-AR הזו!"
+  }
+};
+
+let currentLang = 'ru';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  document.dir = (lang === 'he') ? 'rtl' : 'ltr';
+  
+  // Populate all texts
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(i18n[lang][key]) el.innerText = i18n[lang][key];
+  });
+  CFG.shareText = i18n[lang].cfgShareText;
+  
+  document.getElementById('lang-screen').classList.add('hidden');
+  
+  // Now show the actual AR entry view based on platform
+  if(isIOS){
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('ios-screen').classList.add('show');
+    document.querySelector('.ios-ar-btn').href = CFG.usdzFile;
+    document.querySelector('.ios-site-btn').href = CFG.siteUrl;
+  } else {
+    // Wait for them to press the start AR button, start screen is already there.
+    // Ensure start-screen is visible
+    document.getElementById('start-screen').classList.remove('hidden');
+    document.getElementById('ios-screen').classList.remove('show');
+  }
+}
+
+// ── ОПРЕДЕЛЕНИЕ ПЛАТФОРМЫ ─────────────
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-if(isIOS){
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('ios-screen').classList.add('show');
-  document.querySelector('.ios-ar-btn').href = CFG.usdzFile;
-  document.querySelector('.ios-site-btn').href = CFG.siteUrl;
-}
+// iOS detection moved to setLanguage
 
 // ── THREE.JS ──────────────────────────
 const canvas = document.getElementById('c');
@@ -443,7 +586,7 @@ async function startAR(){
       video.srcObject=s; await video.play(); 
     }catch(err){
       document.getElementById('start-screen').classList.remove('hidden');
-      alert('Не удалось открыть камеру.\n'+err.message); return;
+      alert(i18n[currentLang].errCamera + "\n" + err.message); return;
     }
   }
 
